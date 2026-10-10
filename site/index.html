@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AgentMesh — Autonomous Multi-Agent Swarm Coordination Platform</title>
-  <meta name="description" content="Production-grade multi-agent coordination kernel featuring Delta-State Semantic CRDTs, MACP bounded sessions, Epistemic Merkle-DAG state sourcing, copy-on-write lanes, and universal deployment.">
-  <meta name="theme-color" content="#07090e">
+  <title>AgentMesh — Universal Multi-Agent Swarm Coordination Platform</title>
+  <meta name="description" content="Production-grade multi-agent coordination control plane across Google Antigravity/Gemini, OpenAI, Anthropic Claude, Ollama, DeepSeek, and OpenRouter with Delta-State Semantic CRDTs, MACP bounded sessions, and epistemic Merkle-DAG provenance.">
+  <meta name="theme-color" content="#06080e">
 
   <!-- OpenGraph / Social Metadata -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AgentMesh — Multi-Agent Swarm Platform">
-  <meta property="og:description" content="One repo, one shared system. Delta-State Semantic CRDT, MACP 5-mode coordination kernel, P2P WebRTC data mesh.">
+  <meta property="og:title" content="AgentMesh — Universal Multi-Agent Swarm Platform">
+  <meta property="og:description" content="Universal multi-agent coordination kernel: Delta-State Semantic CRDT, MACP 5-mode consensus, Epistemic Merkle DAG, and real multi-provider AI swarm execution.">
   <meta property="twitter:card" content="summary_large_image">
 
   <!-- Web App Manifest -->
@@ -33,27 +33,31 @@
         </div>
         <span>AgentMesh</span>
       </a>
-      <span class="status-pill sim" id="hub-status-badge">
-        <span class="status-dot"></span> ⚡ AUTONOMOUS SWARM SIMULATOR
-      </span>
+      <button class="status-pill standalone" id="hub-status-badge" title="Click to configure hub connection">
+        <span class="status-dot"></span> <span id="hub-status-text">Hub: Connecting...</span>
+      </button>
+      <button class="status-pill providers-badge" id="btn-quick-providers" title="Configure AI Provider Keys">
+        ⚡ <span id="active-providers-count">AI Providers Configured</span>
+      </button>
     </div>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs" id="navigation-tabs" aria-label="Main Navigation">
-      <button data-tab="topo" class="active" id="tab-btn-topo">1. Topology</button>
-      <button data-tab="sim" id="tab-btn-sim">2. Swarm</button>
+      <button data-tab="topo" class="active" id="tab-btn-topo">1. Topology &amp; Intents</button>
+      <button data-tab="swarm" id="tab-btn-swarm">2. Swarm &amp; AI Dispatch</button>
       <button data-tab="crdt" id="tab-btn-crdt">3. Semantic CRDT</button>
       <button data-tab="macp" id="tab-btn-macp">4. MACP Kernel</button>
       <button data-tab="dag" id="tab-btn-dag">5. Merkle DAG</button>
-      <button data-tab="board" id="tab-btn-board">6. Board</button>
+      <button data-tab="board" id="tab-btn-board">6. Whiteboard</button>
       <button data-tab="voice" id="tab-btn-voice">7. Voice &amp; P2P</button>
-      <button data-tab="health" id="tab-btn-health">8. Health</button>
+      <button data-tab="health" id="tab-btn-health">8. Health &amp; Logs</button>
     </nav>
 
     <!-- Header Actions -->
     <div class="header-actions">
-      <button class="btn-ghost" id="btn-sound-toggle">🔊 Audio: On</button>
-      <button class="btn-primary" id="btn-connect-hub">Connect Hub</button>
+      <button class="btn-primary" id="btn-open-declare-modal">+ Declare Intent</button>
+      <button class="btn-ghost" id="btn-open-settings" title="AI Providers &amp; Keys">⚙ Settings</button>
+      <button class="btn-ghost" id="btn-connect-hub">Connect Hub</button>
     </div>
   </header>
 
@@ -63,9 +67,9 @@
     <!-- Top Level Metric Stats Row -->
     <section class="metric-row" aria-label="Mesh Statistics">
       <div class="metric-card">
-        <div class="label">Event Seq</div>
-        <div class="val" id="metric-seq">#42</div>
-        <div class="sub">SQLite WAL Log</div>
+        <div class="label">Event Sequence</div>
+        <div class="val" id="metric-seq">#0</div>
+        <div class="sub">SQLite WAL State Log</div>
       </div>
       <div class="metric-card">
         <div class="label">Trunk Head</div>
@@ -73,46 +77,133 @@
         <div class="sub">CAS-gated Integration</div>
       </div>
       <div class="metric-card">
-        <div class="label">Active Agents</div>
+        <div class="label">Active Swarm Agents</div>
         <div class="val" id="metric-agents">4</div>
-        <div class="sub">CoW Lanes Active</div>
+        <div class="sub" id="metric-providers-sub">Antigravity • Claude • GPT-4o • Ollama</div>
       </div>
       <div class="metric-card">
-        <div class="label">Intent Collision</div>
-        <div class="val" id="metric-intents" style="color:var(--cyan-core);">0 nominal</div>
-        <div class="sub">MACP Ladder Ready</div>
+        <div class="label">Intent Conduits</div>
+        <div class="val" id="metric-intents" style="color:var(--cyan-core);">0 active</div>
+        <div class="sub" id="metric-collision-sub">AST graph collision: None</div>
       </div>
     </section>
 
-    <!-- Tab 1: Live Interactive Topology Graph -->
+    <!-- Tab 1: Live Interactive Topology Graph & Intent Registry -->
     <section class="view-panel active" id="view-topo" aria-labelledby="heading-topo">
       <div class="grid-2">
         <div class="card" style="grid-column: 1 / -1;">
           <div class="card-header">
-            <h1 style="font-size:1.05rem;" id="heading-topo">Mesh Topology &amp; Active Intent Conduits</h1>
+            <h1 id="heading-topo">Mesh Topology &amp; Active Intent Conduits</h1>
             <div style="display:flex;gap:8px;">
-              <button class="btn-ghost" id="btn-toggle-sim">Pause Simulator</button>
-              <button class="btn-ghost" id="btn-trigger-collision" style="color:var(--amber-warn);border-color:rgba(251,191,36,0.3);">Simulate Collision</button>
+              <button class="btn-ghost" id="btn-refresh-topo">↻ Refresh Graph</button>
+              <button class="btn-primary" id="btn-topo-declare">+ Declare New Intent</button>
             </div>
           </div>
           <div class="topology-stage">
-            <svg id="topology-svg" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="topology-svg" viewBox="0 0 960 480" preserveAspectRatio="xMidYMid meet"></svg>
             <div class="topo-controls">
-              <span style="font-size:0.75rem;color:var(--text-dim);padding:4px 8px;">Conduits: Real-Time Vector Clock Sync</span>
+              <span style="font-size:0.75rem;color:var(--text-dim);padding:4px 8px;">Real-Time AST Intent Graph &bull; Drag to Inspect</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Live Intent Registry -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h2>Active Declared Intent Registry</h2>
+            <span style="font-size:0.75rem;color:var(--emerald-ok);">Pre-edit Scope Leases with AST Collision Forecasting</span>
+          </div>
+          <div id="collision-alert-banner" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);padding:10px 14px;border-radius:var(--radius-sm);color:var(--amber-soft);font-size:0.82rem;">
+            ⚠️ <strong>Intent Collision Forecasted:</strong> Overlapping scopes detected. MACP coordination required before commit.
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" aria-label="Declared Intents Table">
+              <thead>
+                <tr>
+                  <th>Actor / Agent</th>
+                  <th>Declared Goal</th>
+                  <th>Target Paths</th>
+                  <th>Contract Effect</th>
+                  <th>Lease Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="intents-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">No active declared intents. Click "+ Declare Intent" to reserve scope.</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Tab 2: Autonomous Swarm Simulator -->
-    <section class="view-panel" id="view-sim" aria-labelledby="heading-sim">
+    <!-- Tab 2: Universal AI Swarm & Mission Dispatcher -->
+    <section class="view-panel" id="view-swarm" aria-labelledby="heading-swarm">
       <div class="card">
         <div class="card-header">
-          <h2 id="heading-sim">Autonomous Engineering Swarm</h2>
-          <span style="font-size:0.75rem;color:var(--text-dim);">Copy-On-Write Lanes &amp; Micro-VM Sandboxes</span>
+          <h2 id="heading-swarm">Universal Multi-Provider AI Swarm</h2>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" id="btn-add-agent">+ Add Custom Agent</button>
+            <button class="btn-ghost" id="btn-configure-providers">⚙ Provider API Keys</button>
+          </div>
         </div>
+        <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">
+          Coordinate autonomous agents across Google Antigravity/Gemini, OpenAI, Anthropic Claude, Ollama (Local), DeepSeek, and OpenRouter in isolated copy-on-write sandboxes.
+        </p>
+
+        <!-- Swarm Agent Roster Grid -->
         <div class="grid-4" id="agent-cards-container"></div>
+      </div>
+
+      <!-- Real AI Mission Dispatcher -->
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header">
+          <h2>Autonomous Swarm Mission Dispatcher</h2>
+          <span style="font-size:0.75rem;color:var(--cyan-soft);">Live Model Inference &bull; Real Tool Execution</span>
+        </div>
+        
+        <div class="mission-stage">
+          <div class="mission-input-row">
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:200px;">
+              <label for="mission-agent-select" style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Target Agent</label>
+              <select id="mission-agent-select" class="form-group" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:var(--text-main);">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+              <label for="mission-prompt-input" style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Engineering Mission Prompt</label>
+              <textarea id="mission-prompt-input" class="mission-textarea" placeholder="Describe the task (e.g. 'Draft an OpenAPI auth specification with Ed25519 tokens and declare the scope intent')"></textarea>
+            </div>
+          </div>
+
+          <!-- Quick Mission Presets -->
+          <div class="quick-prompts">
+            <span style="font-size:0.72rem;color:var(--text-dim);font-weight:600;">Presets:</span>
+            <button class="quick-prompt-btn" data-preset="Declare intent for src/auth/jwt.ts refactor and review token TTL policy">Declare Auth Scope</button>
+            <button class="quick-prompt-btn" data-preset="Propose breaking contract update for OpenAPI v2 to v3 with MACP consensus">MACP OpenAPI Proposal</button>
+            <button class="quick-prompt-btn" data-preset="Mutate CRDT AST symbol 'contracts/rate-limit.json:burst' to 1500 req/sec">CRDT Rate-Limit Delta</button>
+            <button class="quick-prompt-btn" data-preset="Perform static security audit on copy-on-write sandbox boundaries">Audit L4 Sandboxes</button>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:4px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-muted);cursor:pointer;">
+              <input type="checkbox" id="chk-auto-mesh" checked> Auto-apply actions to Mesh (declare intents, update CRDT, append DAG)
+            </label>
+            <button class="btn-primary" id="btn-dispatch-mission">
+              <span id="btn-dispatch-icon">⚡</span> Run Mission with Selected Model
+            </button>
+          </div>
+
+          <!-- Live Model Output Console -->
+          <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Execution Output &amp; Mesh Actions</span>
+              <span id="mission-status-chip" style="font-size:0.72rem;color:var(--text-dim);font-family:var(--font-mono);"></span>
+            </div>
+            <pre class="mission-console" id="mission-console"></pre>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -122,7 +213,7 @@
         <div class="card">
           <div class="card-header">
             <h2 id="heading-crdt">AST-Symbol Semantic Registers</h2>
-            <span style="font-size:0.75rem;color:var(--emerald-ok);">Strong Eventual Consistency (SEC)</span>
+            <button class="btn-ghost" id="btn-open-mutate-crdt">+ Mutate Symbol</button>
           </div>
           <div style="overflow-x:auto;">
             <table class="crdt-matrix" aria-label="CRDT Registers Table">
@@ -132,18 +223,33 @@
                   <th>Value</th>
                   <th>Author</th>
                   <th>Lamport</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="crdt-tbody"></tbody>
             </table>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header">
-            <h2>Causal Vector Clock</h2>
+            <h2>Causal Vector Clock &amp; SEC State</h2>
             <span style="font-size:0.75rem;color:var(--cyan-core);">Monotonic Lamport Clocks</span>
           </div>
+          <p style="font-size:0.82rem;color:var(--text-muted);">
+            Guarantees Strong Eventual Consistency (SEC) across multi-agent concurrent writes without merge locks.
+          </p>
           <pre id="vector-clock-view" style="font-family:var(--font-mono);font-size:0.85rem;color:var(--cyan-core);background:rgba(0,0,0,0.35);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border-card);"></pre>
+
+          <!-- Inline Symbol Mutator Form -->
+          <div style="background:rgba(12,17,30,0.7);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border-card);display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+            <h4 style="font-size:0.85rem;color:var(--text-main);">Quick Register Mutation</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <input type="text" id="quick-crdt-key" placeholder="Symbol key (e.g. src/api.ts:port)" style="padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;font-size:0.8rem;">
+              <input type="text" id="quick-crdt-val" placeholder="Value (e.g. 8080)" style="padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;font-size:0.8rem;">
+            </div>
+            <button class="btn-primary" id="btn-quick-commit-crdt" style="align-self:flex-end;">Commit CRDT Delta</button>
+          </div>
         </div>
       </div>
     </section>
@@ -153,9 +259,12 @@
       <div class="card">
         <div class="card-header">
           <h2 id="heading-macp">MACP Coordination Sessions</h2>
-          <span style="font-size:0.75rem;color:var(--purple-accent);">RFC-Grade Bounded Sessions</span>
+          <button class="btn-primary" id="btn-open-create-macp">+ New MACP Session</button>
         </div>
-        <div id="macp-sessions-container"></div>
+        <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">
+          RFC-Grade Multi-Agent Consensus Protocol (MACP) bounded sessions for architectural decisions, breaking changes, and quorum approvals.
+        </p>
+        <div id="macp-sessions-container" style="display:flex;flex-direction:column;gap:14px;"></div>
       </div>
     </section>
 
@@ -164,7 +273,15 @@
       <div class="card">
         <div class="card-header">
           <h2 id="heading-dag">Cryptographic Merkle DAG Provenance</h2>
-          <span style="font-size:0.75rem;color:var(--cyan-core);">Content-Addressed Deterministic Replay</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" id="btn-verify-dag-chain">✔ Verify Hash Chain</button>
+            <button class="btn-primary" id="btn-open-append-dag">+ Append State Node</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(12,17,30,0.6);border-radius:var(--radius-sm);border:1px solid var(--border-card);font-family:var(--font-mono);font-size:0.82rem;">
+          <span style="color:var(--text-dim);">Root Hash:</span>
+          <span id="dag-root-hash" style="color:var(--cyan-core);font-weight:700;">Loading...</span>
+          <span id="dag-verify-status" style="margin-left:auto;color:var(--emerald-ok);font-size:0.75rem;">Verified</span>
         </div>
         <div class="dag-timeline" id="dag-timeline-container"></div>
       </div>
@@ -174,24 +291,36 @@
     <section class="view-panel" id="view-board" aria-labelledby="heading-board">
       <div class="card">
         <div class="card-header">
-          <h2 id="heading-board">Collaborative Whiteboard</h2>
-          <span style="font-size:0.75rem;color:var(--text-dim);">Op-Synced with Code References (&fnof;)</span>
+          <h2 id="heading-board">Collaborative Architecture Canvas</h2>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" id="btn-board-clear">Clear</button>
+            <button class="btn-ghost" id="btn-board-export">Export JSON</button>
+            <button class="btn-ghost" id="btn-board-import">Import JSON</button>
+          </div>
         </div>
+        
         <div class="board-toolbar">
-          <button class="active" data-tool="draw" id="btn-tool-draw">Pen</button>
-          <button data-tool="select" id="btn-tool-select">Select</button>
-          <button data-tool="rect" id="btn-tool-rect">Rect</button>
-          <button data-tool="note" id="btn-tool-note">Sticky Note</button>
-          <select id="board-color" aria-label="Whiteboard Color Picker">
-            <option value="#38bdf8">Electric Cyan</option>
-            <option value="#34d399">Emerald</option>
-            <option value="#fbbf24">Amber</option>
-            <option value="#f43f5e">Rose</option>
-            <option value="#a855f7">Purple</option>
-          </select>
-          <button class="btn-ghost" onclick="toast('Exported tldraw JSON representation.', 'ok')">Export JSON</button>
+          <button class="active" data-tool="pen" id="btn-tool-pen">✎ Freehand Pen</button>
+          <button data-tool="rect" id="btn-tool-rect">▭ Architecture Block</button>
+          <button data-tool="note" id="btn-tool-note">🗈 Sticky Note</button>
+          <button data-tool="select" id="btn-tool-select">⇱ Select / Move</button>
+          <button id="btn-tool-delete" style="color:var(--rose-bad);border-color:rgba(244,63,94,0.3);">🗑 Delete Selected</button>
+          
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+            <span style="font-size:0.75rem;color:var(--text-dim);">Color:</span>
+            <select id="board-color" style="background:var(--bg-input);border:1px solid var(--border-card);color:var(--text-main);padding:4px 8px;border-radius:var(--radius-sm);font-size:0.78rem;">
+              <option value="#00f2fe">Electric Cyan</option>
+              <option value="#10b981">Emerald</option>
+              <option value="#f59e0b">Amber</option>
+              <option value="#f43f5e">Rose</option>
+              <option value="#8b5cf6">Purple</option>
+            </select>
+          </div>
         </div>
-        <svg class="board-svg" id="board-svg"></svg>
+
+        <div class="board-stage" id="board-stage">
+          <svg id="board-svg"></svg>
+        </div>
       </div>
     </section>
 
@@ -201,72 +330,265 @@
         <div class="card">
           <div class="card-header">
             <h2 id="heading-voice">WebRTC P2P Voice Room</h2>
-            <span style="font-size:0.75rem;color:var(--emerald-ok);">Zero Server Media Bill</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-primary" id="btn-toggle-mic">🎤 Connect Microphone</button>
+              <button class="btn-ghost" id="btn-mute-mic" disabled>Mute</button>
+            </div>
           </div>
           <div class="voice-grid">
             <div class="voice-peer-card">
-              <div class="voice-avatar speaking" aria-label="You">ME</div>
-              <div style="font-weight:700;font-size:0.85rem;">You (Local)</div>
-              <div style="font-size:0.72rem;color:var(--emerald-ok);">P2P Channel Active</div>
+              <div class="voice-avatar" id="local-voice-avatar">ME</div>
+              <div style="font-weight:700;font-size:0.88rem;">Local User</div>
+              <div id="local-voice-status" style="font-size:0.74rem;color:var(--text-dim);">Microphone Idle</div>
+              <!-- Real Web Audio API VU meter -->
+              <div class="vu-meter-bar">
+                <div class="vu-meter-fill" id="vu-meter-fill"></div>
+              </div>
             </div>
             <div class="voice-peer-card">
-              <div class="voice-avatar" aria-label="AI Lead">AI</div>
-              <div style="font-weight:700;font-size:0.85rem;">Swarm Lead</div>
-              <div style="font-size:0.72rem;color:var(--cyan-core);">Listening</div>
+              <div class="voice-avatar" style="background:linear-gradient(135deg,var(--emerald-ok),var(--cyan-core));">AI</div>
+              <div style="font-weight:700;font-size:0.88rem;">Swarm Voice Lead</div>
+              <div style="font-size:0.74rem;color:var(--emerald-soft);">A2A Gateway Ready</div>
+              <div class="vu-meter-bar">
+                <div class="vu-meter-fill" style="width:0%;"></div>
+              </div>
             </div>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header">
             <h2>P2P DataChannel Mesh</h2>
-            <span style="font-size:0.75rem;color:var(--cyan-core);">&lt; 5ms Latency Gossiping</span>
+            <span style="font-size:0.75rem;color:var(--cyan-core);">&lt; 5ms Direct Gossiping</span>
           </div>
-          <div style="padding:10px;font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:8px;">
-            <div>● Direct WebRTC DataChannels bypass the central server for CRDT delta gossiping.</div>
+          <div style="padding:10px;font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:10px;">
+            <div>● Direct WebRTC DataChannels allow agents and human editors to exchange CRDT deltas without roundtrips to the central server.</div>
             <div>● Initial signaling coordinated via ephemeral mailbox (60s TTL).</div>
-            <div>● Zero coordinator bottlenecks during rapid concurrent generation.</div>
+            <div>● Zero coordinator bottlenecks during rapid concurrent code generation.</div>
+          </div>
+          <div style="background:#03060c;border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:12px;font-family:var(--font-mono);font-size:0.78rem;color:var(--cyan-soft);max-height:160px;overflow-y:auto;" id="p2p-log">
+            [P2P Mesh] DataChannel subsystem ready for peer signaling.
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Tab 8: Health, Audit & Observability -->
+    <!-- Tab 8: Health, Audit & Live Event Stream -->
     <section class="view-panel" id="view-health" aria-labelledby="heading-health">
       <div class="grid-2">
         <div class="card">
           <div class="card-header">
-            <h2 id="heading-health">Observability &amp; Guard Metrics</h2>
-            <span style="font-size:0.75rem;color:var(--emerald-ok);">OpenTelemetry &amp; /metrics</span>
+            <h2 id="heading-health">System Observability &amp; Guard Metrics</h2>
+            <button class="btn-ghost" id="btn-refresh-metrics">↻ Refresh</button>
           </div>
-          <div style="font-family:var(--font-mono);font-size:0.8rem;background:rgba(0,0,0,0.3);padding:12px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:6px;">
-            <div>mesh_uptime_seconds: 43200</div>
-            <div>mesh_sqlite_wal_events: 1042</div>
+          <div style="font-family:var(--font-mono);font-size:0.82rem;background:rgba(0,0,0,0.35);padding:14px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:8px;" id="metrics-display">
+            <div>mesh_uptime_seconds: Loading...</div>
+            <div>mesh_sqlite_wal_events: Loading...</div>
             <div>mesh_rate_limit_trips_total: 0</div>
             <div>mesh_crdt_convergence_ratio: 1.000</div>
-            <div>mesh_harness_verdicts_passed: 124</div>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header">
-            <h2>Capabilities &amp; Security</h2>
-            <span style="font-size:0.75rem;color:var(--purple-accent);">Ed25519 Tokens</span>
+            <h2>Live Hub SSE Event Stream</h2>
+            <button class="btn-ghost" id="btn-clear-events">Clear Log</button>
           </div>
-          <div style="font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:10px;">
-            <div>Auth Enforcement: <strong>Ed25519 Capability Tokens</strong></div>
-            <div>Sandbox Isolation: <strong>L4 Micro-VM / Container Drivers</strong></div>
-            <div>Boundary Guard: <strong>Strict Hard Lease 409 Refusal</strong></div>
-          </div>
+          <pre style="background:#03060c;border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:14px;font-family:var(--font-mono);font-size:0.78rem;color:#e2e8f0;max-height:260px;overflow-y:auto;" id="sse-events-console">
+Connecting to /events stream...
+          </pre>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- Connect Remote Hub Modal Dialog -->
-  <div class="modal-overlay" id="connect-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <!-- Modals -->
+
+  <!-- Modal 1: Settings & AI Providers -->
+  <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-card">
-      <h3 id="modal-title">Connect to AgentMesh Hub</h3>
-      <p>Enter the URL of your local or cloud-hosted AgentMesh Core daemon to monitor live multi-agent events.</p>
+      <h3 id="settings-title">AI Provider &amp; Model Credentials</h3>
+      <p>Configure API keys for your preferred LLM providers. Keys are stored locally in your browser and used to power autonomous agents.</p>
+      
+      <!-- Gemini / Antigravity -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:var(--cyan-soft);">Google Antigravity &amp; Gemini</strong>
+          <button class="btn-ghost" id="btn-test-gemini" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="password" id="key-gemini" placeholder="Enter GEMINI_API_KEY (AIzaSy...)">
+        </div>
+      </div>
+
+      <!-- Anthropic Claude -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:var(--amber-soft);">Anthropic Claude</strong>
+          <button class="btn-ghost" id="btn-test-anthropic" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="password" id="key-anthropic" placeholder="Enter ANTHROPIC_API_KEY (sk-ant-...)">
+        </div>
+      </div>
+
+      <!-- OpenAI -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:var(--emerald-soft);">OpenAI (GPT-4o, o1, o3)</strong>
+          <button class="btn-ghost" id="btn-test-openai" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="password" id="key-openai" placeholder="Enter OPENAI_API_KEY (sk-...)">
+        </div>
+      </div>
+
+      <!-- Ollama Local -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:var(--purple-soft);">Ollama (Local / Zero-Cloud)</strong>
+          <button class="btn-ghost" id="btn-test-ollama" style="padding:2px 8px;font-size:0.72rem;">Check Endpoint</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="text" id="endpoint-ollama" placeholder="http://localhost:11434" value="http://localhost:11434">
+        </div>
+      </div>
+
+      <!-- OpenRouter & DeepSeek -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:#00f2fe;">OpenRouter / DeepSeek</strong>
+          <button class="btn-ghost" id="btn-test-openrouter" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="password" id="key-openrouter" placeholder="Enter OPENROUTER_API_KEY or DEEPSEEK_API_KEY">
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button class="btn-ghost" id="btn-close-settings">Close</button>
+        <button class="btn-primary" id="btn-save-settings">Save &amp; Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Declare Intent -->
+  <div class="modal-overlay" id="declare-intent-modal" role="dialog" aria-modal="true" aria-labelledby="declare-title">
+    <div class="modal-card">
+      <h3 id="declare-title">Declare Scope Intent</h3>
+      <p>Reserve path scopes and symbols before editing code. The mesh calculates overlaps and warns of breaking changes.</p>
+      
+      <div class="form-group">
+        <label for="declare-actor">Actor / Agent</label>
+        <select id="declare-actor"></select>
+      </div>
+
+      <div class="form-group">
+        <label for="declare-goal">Goal Description</label>
+        <input type="text" id="declare-goal" placeholder="e.g. Refactor Ed25519 authentication verification logic">
+      </div>
+
+      <div class="form-group">
+        <label for="declare-paths">Target Path Globs (comma separated)</label>
+        <input type="text" id="declare-paths" placeholder="src/auth/**, contracts/auth.json">
+      </div>
+
+      <div class="form-group">
+        <label for="declare-effect">Contract Effect</label>
+        <select id="declare-effect">
+          <option value="none">none — Internal logic change only</option>
+          <option value="additive">additive — New fields or non-breaking API additions</option>
+          <option value="breaking">breaking — Modifies existing contracts or schemas</option>
+        </select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button class="btn-ghost" id="btn-cancel-declare">Cancel</button>
+        <button class="btn-primary" id="btn-submit-declare">Declare &amp; Acquire Lease</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add Swarm Agent -->
+  <div class="modal-overlay" id="add-agent-modal" role="dialog" aria-modal="true" aria-labelledby="add-agent-title">
+    <div class="modal-card">
+      <h3 id="add-agent-title">Add Custom Swarm Agent</h3>
+      <p>Provision a new agent with assigned model provider, system role, and isolated copy-on-write lane.</p>
+
+      <div class="form-group">
+        <label for="new-agent-id">Agent Identifier (ID)</label>
+        <input type="text" id="new-agent-id" placeholder="e.g. test-runner">
+      </div>
+
+      <div class="form-group">
+        <label for="new-agent-role">System Role</label>
+        <input type="text" id="new-agent-role" placeholder="e.g. Verification Harness Runner">
+      </div>
+
+      <div class="form-group">
+        <label for="new-agent-provider">AI Provider</label>
+        <select id="new-agent-provider">
+          <option value="gemini">Google Antigravity &amp; Gemini</option>
+          <option value="anthropic">Anthropic Claude</option>
+          <option value="openai">OpenAI</option>
+          <option value="ollama">Ollama (Local)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="openrouter">OpenRouter</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="new-agent-model">Model</label>
+        <input type="text" id="new-agent-model" placeholder="e.g. gemini-2.5-flash or claude-3-7-sonnet">
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button class="btn-ghost" id="btn-cancel-agent">Cancel</button>
+        <button class="btn-primary" id="btn-submit-agent">Add Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Create MACP Session -->
+  <div class="modal-overlay" id="create-macp-modal" role="dialog" aria-modal="true" aria-labelledby="macp-modal-title">
+    <div class="modal-card">
+      <h3 id="macp-modal-title">Initiate MACP Coordination Session</h3>
+      <p>Open an RFC-grade bounded coordination session for architectural decisions or quorum voting.</p>
+
+      <div class="form-group">
+        <label for="macp-mode">Session Mode</label>
+        <select id="macp-mode">
+          <option value="decision">decision — Weighted voting with binding resolution</option>
+          <option value="proposal">proposal — 3-round negotiation ladder</option>
+          <option value="quorum">quorum — Strict threshold approval</option>
+          <option value="task">task — Delegated bounded work session</option>
+          <option value="handoff">handoff — State transfer between agents</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="macp-title">Session Title</label>
+        <input type="text" id="macp-title" placeholder="e.g. Adopt OpenAPI v3.1 schema for authentication endpoints">
+      </div>
+
+      <div class="form-group">
+        <label for="macp-initiator">Initiator</label>
+        <select id="macp-initiator"></select>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button class="btn-ghost" id="btn-cancel-macp">Cancel</button>
+        <button class="btn-primary" id="btn-submit-macp">Create Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Connect Remote Hub -->
+  <div class="modal-overlay" id="connect-modal" role="dialog" aria-modal="true" aria-labelledby="hub-modal-title">
+    <div class="modal-card">
+      <h3 id="hub-modal-title">Connect to AgentMesh Hub</h3>
+      <p>Enter the URL of your local or remote AgentMesh Core daemon to synchronize live state.</p>
       <div class="form-group">
         <label for="input-hub-url">Hub Endpoint URL</label>
         <input type="text" id="input-hub-url" placeholder="http://localhost:7777" value="http://localhost:7777">
@@ -275,23 +597,23 @@
         <label for="input-hub-token">Capability Token (Optional)</label>
         <input type="password" id="input-hub-token" placeholder="ed25519-token-...">
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
         <button class="btn-ghost" id="btn-modal-cancel">Cancel</button>
         <button class="btn-primary" id="btn-modal-save">Connect &amp; Stream</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Container -->
+  <!-- Toast Notification Container -->
   <div id="toast-container" aria-live="polite"></div>
 
   <!-- Footer -->
   <footer class="app-footer" id="main-footer">
-    <div>AgentMesh v1.2.0 — Production-grade multi-agent coordination kernel. MIT License.</div>
-    <div style="display:flex;gap:16px;">
-      <a href="https://github.com" target="_blank" rel="noreferrer">Documentation</a>
-      <a href="/a2a/agent-card.json" target="_blank">A2A Agent Card</a>
-      <a href="/metrics" target="_blank">Metrics</a>
+    <div>AgentMesh v1.2.0 — Universal multi-agent coordination platform across all AI providers. MIT License.</div>
+    <div style="display:flex;gap:18px;">
+      <a href="/a2a/agent-card.json" target="_blank" rel="noreferrer">A2A Standard Agent Card</a>
+      <a href="/metrics" target="_blank" rel="noreferrer">OpenTelemetry Metrics</a>
+      <a href="/health" target="_blank" rel="noreferrer">Health Check</a>
     </div>
   </footer>
 

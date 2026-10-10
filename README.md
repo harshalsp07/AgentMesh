@@ -2,12 +2,13 @@
 
 [![Docker Image](https://img.shields.io/badge/docker-harshalsp07%2Fagentmesh-blue?logo=docker)](https://hub.docker.com/r/harshalsp07/agentmesh)
 [![GitHub Pages](https://img.shields.io/badge/live_demo-github_pages-brightgreen?logo=github)](https://harshalsp07.github.io/AgentMesh/)
-[![Tests](https://img.shields.io/badge/tests-59%20passed-success)](https://github.com/harshalsp07/AgentMesh/actions)
+[![Tests](https://img.shields.io/badge/tests-62%20passed-success)](https://github.com/harshalsp07/AgentMesh/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 One repo behaves like one shared system: one hub, copy-on-write lanes per actor,
 MeshVCS above git, intent-before-edit, contracts as first-class nodes, harness-gated trunk,
-plus **Delta-State Semantic CRDT**, **MACP 5-Mode Kernel**, **Epistemic Merkle DAG**,
+plus **Universal Multi-Provider AI Coordination** (Google Antigravity & Gemini, Anthropic Claude, OpenAI, Ollama Local, DeepSeek, OpenRouter),
+**Delta-State Semantic CRDT**, **MACP 5-Mode Kernel**, **Epistemic Merkle DAG**,
 and **Universal Multi-Platform Publishing** (Vercel, Netlify, Cloudflare, GitHub Pages, Docker, Railway, Render).
 
 ---
