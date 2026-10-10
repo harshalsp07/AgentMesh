@@ -1,20 +1,65 @@
 # AgentMesh v1.2.0 — Production-Ready Multi-Agent Platform & Publishing
 
+[![Docker Image](https://img.shields.io/badge/docker-harshalsp07%2Fagentmesh-blue?logo=docker)](https://hub.docker.com/r/harshalsp07/agentmesh)
+[![GitHub Pages](https://img.shields.io/badge/live_demo-github_pages-brightgreen?logo=github)](https://harshalsp07.github.io/AgentMesh/)
+[![Tests](https://img.shields.io/badge/tests-59%20passed-success)](https://github.com/harshalsp07/AgentMesh/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 One repo behaves like one shared system: one hub, copy-on-write lanes per actor,
 MeshVCS above git, intent-before-edit, contracts as first-class nodes, harness-gated trunk,
 plus **Delta-State Semantic CRDT**, **MACP 5-Mode Kernel**, **Epistemic Merkle DAG**,
 and **Universal Multi-Platform Publishing** (Vercel, Netlify, Cloudflare, GitHub Pages, Docker, Railway, Render).
 
-## Run it
+---
 
+## 🚀 Quickstart: How to Use AgentMesh
+
+Choose the easiest way to run or explore AgentMesh:
+
+### Method 1: Instant Docker Container (Recommended)
+Run the pre-built, production-hardened container directly from Docker Hub:
 ```bash
+docker run -d -p 7777:7777 --name agentmesh harshalsp07/agentmesh:latest
+```
+👉 Open your browser at **[http://localhost:7777](http://localhost:7777)** to access the live dashboard, topology visualizer, and agent mesh!
+
+To stop the container:
+```bash
+docker stop agentmesh
+```
+
+---
+
+### Method 2: Explore Live Online (No Installation Needed)
+Experience the interactive 4-agent swarm simulator, MACP quorum voting, and Semantic CRDTs directly in your browser:  
+👉 **[https://harshalsp07.github.io/AgentMesh/](https://harshalsp07.github.io/AgentMesh/)**
+
+---
+
+### Method 3: Run with npx (Node 22+)
+Execute commands directly via `npx` from any machine without installing:
+```bash
+npx @harshalsp07/agentmesh status
+# Or launch the core daemon:
+npx @harshalsp07/agentmesh hub
+```
+
+---
+
+### Method 4: Run from Source
+```bash
+# Clone the repository
+git clone https://github.com/harshalsp07/AgentMesh.git
+cd AgentMesh
+
+# Verify everything works
 npm test             # 59 tests green (incl. vcs backends, CRDT, MACP, DAG, publishing)
 npm run publish:check # verifies all 18 platform deployment configurations
-npm run demo:all     # all 6 demo scenarios verified
-node src/hub.mjs     # hub on :7777 — modern canvas http://localhost:7777/
-node src/mesh.mjs status --root .mesh
-node scripts/doctor.mjs
+
+# Start the Hub on :7777
+node src/hub.mjs
 ```
+Open **[http://localhost:7777](http://localhost:7777)** in your browser.
 
 ## Architecture & System Design
 

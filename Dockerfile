@@ -1,4 +1,9 @@
 FROM node:22-slim
+LABEL org.opencontainers.image.title="AgentMesh"
+LABEL org.opencontainers.image.description="Production-grade multi-agent coordination kernel with semantic CRDT, MACP bounded sessions, and live web canvas."
+LABEL org.opencontainers.image.url="https://github.com/harshalsp07/AgentMesh"
+LABEL org.opencontainers.image.source="https://github.com/harshalsp07/AgentMesh"
+LABEL org.opencontainers.image.licenses="MIT"
 RUN useradd -m mesh && mkdir -p /data && chown mesh:mesh /data
 WORKDIR /app
 COPY package.json ./

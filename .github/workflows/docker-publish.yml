@@ -72,3 +72,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # 5. Sync README to Docker Hub Description & Overview
+      - name: Update Docker Hub Description
+        if: ${{ env.HAVE_DOCKERHUB_SECRETS == 'true' }}
+        uses: peter-evans/dockerhub-description@v4
+        env:
+          HAVE_DOCKERHUB_SECRETS: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/agentmesh
+          short-description: "Autonomous multi-agent swarm platform with Semantic CRDT, MACP kernel, and Web Canvas."
+          readme-filepath: ./README.md
