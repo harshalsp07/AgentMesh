@@ -3,7 +3,10 @@
   "version": "1.2.0",
   "description": "AgentMesh: one repo, one shared system — hub + lanes + MeshVCS + harness + contracts + canvas + board + voice + semantic CRDT + MACP + universal platform publishing",
   "type": "module",
-  "bin": { "mesh": "./bin/mesh" },
+  "bin": {
+    "mesh": "./bin/mesh",
+    "agentmesh": "./bin/mesh"
+  },
   "files": ["src/", "bin/", "templates/", "extension/", "scripts/", "docs/", "site/", "README.md", "LICENSE", "CHANGELOG.md"],
   "engines": { "node": ">=22" },
   "scripts": {
