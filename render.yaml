@@ -1,0 +1,19 @@
+# Render Blueprint Configuration for AgentMesh
+services:
+  - type: web
+    name: agentmesh
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    healthCheckPath: /ready
+    envVars:
+      - key: MESH_HOST
+        value: 0.0.0.0
+      - key: MESH_PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: mesh-data
+      mountPath: /data
+      sizeGB: 1

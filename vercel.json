@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "name": "agentmesh-platform",
+  "cleanUrls": true,
+  "outputDirectory": "site",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS, PUT, DELETE" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Mesh-Actor, X-Mesh-Token" }
+      ]
+    },
+    {
+      "source": "/(style.css|app.js|sw.js)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/canvas", "destination": "/index.html" },
+    { "source": "/((?!api/|a2a/|events).*)", "destination": "/index.html" }
+  ]
+}

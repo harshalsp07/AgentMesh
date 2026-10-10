@@ -1,0 +1,6 @@
+node_modules/
+.mesh*/
+eject-*/
+.mesh-bundles/
+*.log
+.git/

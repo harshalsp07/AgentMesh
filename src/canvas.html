@@ -1,0 +1,340 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentMesh Canvas</title>
+<style>
+:root{--bg:#0b0e14;--panel:#11161f;--line:#232b38;--txt:#e6edf3;--dim:#9fb3c8;--acc:#38bdf8;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--txt)}
+header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:5}
+#trunk{font-weight:700}.pill{border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim)}
+.pill.green{color:var(--ok);border-color:var(--ok)}.pill.amber{color:var(--warn);border-color:var(--warn)}
+nav{display:flex;gap:6px}nav button{background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+nav button.on{background:#1f6feb;color:#fff;border-color:#1f6feb}
+button.act{background:#1f6feb;color:#fff;border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
+main{padding:14px;display:grid;gap:14px}
+.view{display:none}.view.on{display:block}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:200px}
+.col h3{margin:0 0 8px;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.node{border:1px solid #334155;border-radius:8px;padding:6px 8px;margin:6px 0;font-size:13px;background:#0d1219}
+.node small{color:var(--dim)}
+.node.soft{outline:2px solid var(--c,var(--acc))}
+.node.hard{border-color:var(--bad)}.node.hard::after{content:" 🔒";float:right}
+.node.proposed{border-style:dashed;border-color:var(--warn)}
+.node.pulse{animation:p 1.2s}
+@keyframes p{from{background:#1e293b}to{background:transparent}}
+.node.collide{outline:2px solid var(--bad)}
+.edge{font-size:12px;color:var(--dim);padding:2px 0}.edge.bad{color:var(--bad);font-weight:700}
+.edge.ok{color:var(--ok)}
+.ring{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.ring.agent{border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}th{color:var(--dim);font-weight:600}
+input,select{background:#0d1219;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+#toasts{position:fixed;right:14px;bottom:14px;display:flex;flex-direction:column;gap:8px;max-width:320px;z-index:9}
+.toast{background:var(--panel);border:1px solid var(--warn);border-radius:8px;padding:8px 10px;font-size:13px}
+#log{font-size:12px;color:var(--dim);max-height:220px;overflow:auto}
+.kbd{font-size:11px;color:var(--dim)}
+@media(max-width:700px){.cols{grid-template-columns:1fr}}
+</style></head><body>
+<header><b>AgentMesh</b><span id="trunk" class="pill">…</span><span id="frozen" class="pill" style="display:none">FROZEN</span>
+<nav id="tabs">
+<button data-v="map" class="on">Map</button><button data-v="team">Team</button><button data-v="queue">Queue</button><button data-v="contracts">Contracts</button><button data-v="board">Board</button><button data-v="voice">Voice</button><button data-v="time">Time</button><button data-v="health">Health</button>
+</nav>
+<label class="kbd"><input type="checkbox" id="focus"> focus: only my neighbors</label>
+<input id="tok" placeholder="token (if hub enforces auth)" size="14" title="mesh token <name> — stored only in this browser">
+<button class="act" onclick="freeze()">freeze</button>
+<span class="kbd">keys: 1-8 tabs · f focus · r refresh</span></header>
+<main>
+<section class="view on" id="v-map"><div class="cols" id="mapcols"></div>
+<div class="col"><h3>Collisions (ladder: amber → editor → interrupt → negotiate)</h3><div id="collide"></div></div></section>
+<section class="view" id="v-team"><div class="cols"><div class="col"><h3>Roster</h3><div id="team"></div></div>
+<div class="col"><h3>Approvals (owner inbox)</h3><div id="appr"></div></div>
+<div class="col"><h3>Pairs</h3><div id="pairs"></div></div></div>
+<div class="col"><h3>Ask (typed request)</h3>
+<input id="rq-to" placeholder="@actor" size="10"> <input id="rq-text" placeholder="please expose createdAt" size="34">
+<button class="act" onclick="ask()">send</button> <span class="kbd">owner approves unless trusted</span></div></section>
+<section class="view" id="v-queue"><div class="cols"><div class="col"><h3>Integration queue (only road to trunk)</h3><div id="q"></div></div>
+<div class="col"><h3>Lanes &amp; snapshots</h3><div id="lanes"></div></div></div></section>
+<section class="view" id="v-contracts"><div class="col"><h3>Contracts (stable vs proposed)</h3><div id="contracts"></div></div>
+<div class="col"><h3>Pin a node (sticky notes agents read)</h3>
+<input id="pin-node" placeholder="src/api/auth/login.ts" size="26"> <input id="pin-text" placeholder="race here?" size="30">
+<button class="act" onclick="pin()">pin</button></div></section>
+<section class="view" id="v-board"><div class="col"><h3>Whiteboard (synced ops · exports to tldraw)</h3>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="tools">
+<button class="act" data-t="select">select</button><button data-t="note">note</button><button data-t="text">text</button><button data-t="rect">rect</button><button data-t="ellipse">ellipse</button><button data-t="arrow">arrow</button><button data-t="draw">pen</button><button data-t="eraser">eraser</button>
+<select id="bcolor"><option>yellow</option><option>blue</option><option>green</option><option>pink</option><option>gray</option><option>red</option></select>
+<input id="bref" placeholder="code ref (optional)" size="20">
+<button onclick="boardClear()">clear</button>
+<button onclick="location=HUB+'/api/board-export'">export ↓</button>
+<button onclick="boardImport()">import ↑</button>
+<span class="kbd" id="bstat"></span></div>
+<svg id="board" viewBox="0 0 1200 700" style="width:100%;height:60vh;background:#0d1219;border:1px solid var(--line);border-radius:8px;touch-action:none"></svg>
+<div class="kbd">stickies can carry a code ref — click the ⌁ badge to see it · every stroke is an op, replayable like code</div></div></section>
+<section class="view" id="v-voice"><div class="cols"><div class="col"><h3>Voice (P2P audio · hub only signals)</h3>
+<input id="vname" placeholder="your name" size="12">
+<button class="act" onclick="voiceJoin()">join</button>
+<button onclick="voiceMute()">mute</button>
+<button onclick="voiceLeave()">leave</button>
+<div id="vstat" class="edge">not in voice — browser mic stays local; audio never touches the server</div>
+<div id="vpeers"></div></div>
+<div class="col"><h3>How it works</h3><div class="edge">SDP offers/answers + ICE trickle through the hub mailbox (60s TTL, never logged). Media is peer-to-peer WebRTC between browsers — fine for a 3–5 person room. No mic? You still see who's talking.</div></div></div></section>
+<section class="view" id="v-time"><div class="col"><h3>Time machine (replay the op log)</h3>
+<input id="scrub" type="range" min="0" max="100" value="100" style="width:100%">
+<div id="replay"></div></div></section>
+<section class="view" id="v-health"><div class="cols"><div class="col"><h3>Inbox / events</h3><div id="log"></div></div>
+<div class="col"><h3>Decisions</h3><div id="dec"></div>
+<h3>Record decision</h3><input id="dec-t" placeholder="topic" size="14"> <input id="dec-d" placeholder="decision" size="24">
+<button class="act" onclick="decide()">record</button></div></div></section>
+</main>
+<div id="toasts"></div>
+<script>
+const HUB = location.origin, $ = (id) => document.getElementById(id);
+const colors = {}, color = (a) => colors[a] ||= '#' + [...a].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16).padStart(6, '0').slice(-6);
+let OV = null, EVENTS = [], seenToast = new Set();
+document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => show(b.dataset.v));
+function show(v) { document.querySelectorAll('.view').forEach((s) => s.classList.remove('on')); $('v-' + v).classList.add('on'); document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); }
+document.addEventListener('keydown', (e) => {
+  if (/input/i.test(e.target.tagName)) return;
+  const tabs = ['map', 'team', 'queue', 'contracts', 'board', 'voice', 'time', 'health'];
+  if (e.key >= '1' && e.key <= '8') show(tabs[+e.key - 1]);
+  if (e.key === 'f') { $('focus').checked = !$('focus').checked; refresh(); }
+  if (e.key === 'r') refresh();
+});
+function toast(msg) { if (seenToast.has(msg) || document.querySelectorAll('.toast').length >= 3) return; seenToast.add(msg); const d = document.createElement('div'); d.className = 'toast'; d.textContent = msg; $('toasts').append(d); setTimeout(() => d.remove(), 12000); }
+async function refresh() {
+  try {
+    OV = await (await fetch(HUB + '/api/overview')).json();
+    EVENTS = (await (await fetch(HUB + '/api/events?limit=200')).json()).events || [];
+  } catch { $('trunk').textContent = 'hub unreachable — run: node src/hub.mjs'; return; }
+  const me = null, focusOnly = $('focus').checked;
+  $('trunk').textContent = 'trunk ' + (OV.trunk || 't0') + ' · seq ' + OV.seq;
+  $('trunk').className = 'pill ' + (OV.queue.quarantined ? 'amber' : 'green');
+  $('frozen').style.display = OV.frozen ? '' : 'none';
+  // map columns
+  const cols = { Frontend: [], Backend: [], Database: [], Shared: [] };
+  for (const [actor, p] of Object.entries(OV.presence || {})) {
+    const col = /front|ui/i.test(JSON.stringify(p)) ? 'Frontend' : /db|migration/i.test(JSON.stringify(p)) ? 'Database' : 'Backend';
+    cols[col].push({ actor, html: `<div class="node soft" style="--c:${color(actor)}"><span class="ring ${OV.roster.find((r) => r.actor === actor)?.role === 'agent' ? 'agent' : ''}" style="background:${color(actor)}"></span>${actor} · ${p.verb || 'active'}${p.away ? ' (away)' : ''}</div>` });
+  }
+  for (const i of OV.intents || []) cols.Shared.push({ actor: i.actor, html: `<div class="node proposed"><b>${i.actor}</b> ${i.goal || ''}<br><small>${(i.paths || []).join(', ')}</small></div>` });
+  $('mapcols').innerHTML = Object.entries(cols).map(([k, v]) => `<div class="col"><h3>${k}</h3>${v.map((x) => x.html).join('') || '<span class="kbd">quiet</span>'}</div>`).join('');
+  $('collide').innerHTML = OV.collisions.length ? OV.collisions.map((c) => `<div class="edge bad">⚠ ${c.a} × ${c.b} — ${c.grade}</div>`).join('') : '<div class="edge ok">no predicted collisions</div>';
+  OV.collisions.filter((c) => c.grade === 'overlapping' || c.grade === 'contradictory').slice(0, 3).forEach((c) => toast(`⚠ ${c.a} × ${c.b}: ${c.grade}`));
+  $('team').innerHTML = OV.roster.map((r) => `<div class="node"><span class="ring ${r.role === 'agent' ? 'agent' : ''}" style="background:${color(r.actor)}"></span>${r.actor} <small>${r.role} · ${r.avail || 'available'}${r.skills.length ? ' · ' + r.skills.join(',') : ''}</small></div>`).join('') || '—';
+  $('appr').innerHTML = OV.openReqs.length ? OV.openReqs.map((r) => `<div class="node">@${r.to} ← ${r.from}: ${r.text} <small>(${r.status})</small></div>`).join('') : '<div class="edge ok">inbox clear</div>';
+  $('pairs').innerHTML = OV.pairs.length ? OV.pairs.map((p) => `<div class="edge">${p.a} + ${p.b} <small>${p.scratch || ''}</small></div>`).join('') : '—';
+  $('q').innerHTML = `<table><tr><th>change</th><th>lane</th><th>status</th></tr>${OV.queue.items.map((c) => `<tr><td>${c.change_id}</td><td>${c.lane}</td><td>${c.status}</td></tr>`).join('') || '<tr><td colspan=3>empty</td></tr>'}</table><div class="edge">landed ${OV.queue.landed} · quarantined ${OV.queue.quarantined}</div>`;
+  $('lanes').innerHTML = OV.lanes.map((l) => `<div class="edge">${l.actor} — head ${l.head || '—'} · ${l.snaps} snapshots</div>`).join('') || '—';
+  $('contracts').innerHTML = `<table><tr><th>contract</th><th>status</th><th>change</th></tr>${OV.contracts.slice(0, 30).map((c) => `<tr><td>${c.id}</td><td>${c.status}</td><td>${c.diff || '—'}</td></tr>`).join('') || '<tr><td colspan=3>none yet — run: mesh contract extract &lt;lane&gt;</td></tr>'}</table>`;
+  $('dec').innerHTML = OV.decisions.map((d) => `<div class="edge">${d.topic}: ${d.decision}</div>`).join('') || '—';
+  renderTime();
+}
+function renderTime() {
+  const pct = +$('scrub').value, idx = Math.floor((EVENTS.length - 1) * pct / 100);
+  const ev = EVENTS[idx];
+  $('replay').innerHTML = ev ? `<div class="edge">event ${ev.seq}/${EVENTS.length} · ${ev.kind} · ${ev.actor}</div><div class="edge">${JSON.stringify(ev.payload).slice(0, 300)}</div>` : 'no events yet';
+}
+$('scrub').oninput = renderTime;
+async function post(path, body) {
+  const t = ($('tok') && $('tok').value) || localStorage.mesh_token || '';
+  if ($('tok') && $('tok').value) localStorage.mesh_token = $('tok').value;
+  const r = await fetch(HUB + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(t ? { authorization: 'Bearer ' + t } : {}) }, body: JSON.stringify({ actor: 'canvas-user', ...body }) });
+  return r.json();
+}
+function ask() { post('/api/request', { to: $('rq-to').value.replace('@', ''), text: $('rq-text').value }).then(refresh); }
+function pin() { post('/api/pin', { node: $('pin-node').value, text: $('pin-text').value }).then(refresh); }
+function decide() { post('/api/decision', { topic: $('dec-t').value, decision: $('dec-d').value }).then(refresh); }
+function freeze() { post('/cmd', {}); alert('use: node src/mesh.mjs freeze'); }
+const es = new EventSource('/events');
+es.onmessage = (m) => { const d = document.createElement('div'); try { const e = JSON.parse(m.data); d.textContent = `#${e.seq} ${e.kind} · ${e.actor}`; if (e.kind === 'trunk.moved' || /BREAKING|request/i.test(JSON.stringify(e))) toast(`#${e.seq} ${e.kind}`); } catch { d.textContent = m.data.slice(0, 200); } $('log').prepend(d); refresh(); };
+// ---- whiteboard ----
+let BTOOL = 'select', BSEL = null, BSTROKE = null, BDRAG = null, SHAPES = {};
+document.querySelectorAll('#tools button[data-t]').forEach((b) => b.onclick = () => {
+  BTOOL = b.dataset.t;
+  document.querySelectorAll('#tools button[data-t]').forEach((x) => x.classList.toggle('act', x === b));
+});
+const svg = $('board'), NS = 'http://www.w3.org/2000/svg';
+const svgPt = (e) => { const r = svg.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * 1200 / r.width), Math.round((e.clientY - r.top) * 700 / r.height)]; };
+const FCOL = { yellow: '#fef08a', blue: '#bae6fd', green: '#bbf7d0', pink: '#fecdd3', gray: '#e2e8f0', red: '#fecaca' };
+async function boardLoad() {
+  try {
+    const b = await (await fetch(HUB + '/api/board')).json();
+    SHAPES = b.shapes || {};
+    $('bstat').textContent = `${Object.keys(SHAPES).length} shapes · seq ${b.seq || 0}`;
+    boardDraw();
+  } catch {}
+}
+async function boardOp(op) {
+  const r = await post('/api/board/op', { op });
+  if (!r.ok) toast('board: ' + r.error);
+  boardLoad();
+}
+function boardClear() { if (confirm('Clear the whole board for everyone?')) boardOp({ op: 'clear' }); }
+async function boardImport() {
+  const t = prompt('Paste tldraw-compatible JSON (export from tldraw, or our export):');
+  if (!t) return;
+  try { await post('/api/board-import', { doc: JSON.parse(t) }); boardLoad(); }
+  catch { toast('board: bad JSON'); }
+}
+function boardDraw() {
+  svg.innerHTML = '';
+  for (const s of Object.values(SHAPES)) {
+    const g = document.createElementNS(NS, 'g');
+    const fill = FCOL[s.color] || FCOL.yellow;
+    if (s.type === 'draw') {
+      const pl = document.createElementNS(NS, 'polyline');
+      pl.setAttribute('points', (s.points || []).map((p) => p.join(',')).join(' '));
+      pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', fill); pl.setAttribute('stroke-width', '3'); pl.setAttribute('stroke-linecap', 'round');
+      g.append(pl);
+    } else if (s.type === 'arrow') {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', s.x); l.setAttribute('y1', s.y); l.setAttribute('x2', s.x + (s.w || 120)); l.setAttribute('y2', s.y + (s.h || 0));
+      l.setAttribute('stroke', fill); l.setAttribute('stroke-width', '3'); g.append(l);
+    } else {
+      const el = document.createElementNS(NS, s.type === 'ellipse' ? 'ellipse' : 'rect');
+      if (s.type === 'ellipse') { el.setAttribute('cx', s.x + (s.w || 180) / 2); el.setAttribute('cy', s.y + (s.h || 120) / 2); el.setAttribute('rx', (s.w || 180) / 2); el.setAttribute('ry', (s.h || 120) / 2); }
+      else { el.setAttribute('x', s.x); el.setAttribute('y', s.y); el.setAttribute('width', s.w || 180); el.setAttribute('height', s.h || 120); el.setAttribute('rx', '8'); }
+      el.setAttribute('fill', s.type === 'text' ? 'transparent' : fill); el.setAttribute('stroke', '#334155');
+      if (BSEL === s.id) el.setAttribute('stroke', '#38bdf8'), el.setAttribute('stroke-width', '3');
+      g.append(el);
+      if (s.text) {
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('x', s.x + 10); t.setAttribute('y', s.y + 24); t.setAttribute('fill', '#0b0e14'); t.setAttribute('font-size', '14');
+        t.textContent = String(s.text).slice(0, 120);
+        g.append(t);
+      }
+      if (s.codeRef) {
+        const b = document.createElementNS(NS, 'text');
+        b.setAttribute('x', s.x + 10); b.setAttribute('y', s.y + (s.h || 120) - 10); b.setAttribute('fill', '#1f6feb'); b.setAttribute('font-size', '13'); b.style.cursor = 'pointer';
+        b.textContent = '⌁ ' + String(s.codeRef).slice(0, 28);
+        b.onclick = (ev) => { ev.stopPropagation(); toast('code ref: ' + s.codeRef + ' — find it on the Map tab'); };
+        g.append(b);
+      }
+    }
+    g.style.cursor = BTOOL === 'select' ? 'move' : 'crosshair';
+    g.onmousedown = (e) => shapeDown(e, s);
+    svg.append(g);
+  }
+}
+function shapeDown(e, s) {
+  e.stopPropagation();
+  if (BTOOL === 'eraser') { boardOp({ op: 'delete', id: s.id }); return; }
+  if (BTOOL === 'select') { const [x, y] = svgPt(e); BSEL = s.id; BDRAG = { id: s.id, px: x, py: y, ox: s.x, oy: s.y }; boardDraw(); }
+}
+svg.onmousedown = (e) => {
+  const [x, y] = svgPt(e);
+  if (BTOOL === 'draw') { BSTROKE = [[x, y]]; return; }
+  if (['note', 'text', 'rect', 'ellipse'].includes(BTOOL)) {
+    const text = (BTOOL === 'note' || BTOOL === 'text') ? (prompt('text:') || '') : '';
+    if ((BTOOL === 'note' || BTOOL === 'text') && !text) return;
+    boardOp({ op: 'add', shape: { type: BTOOL, x, y, w: 180, h: BTOOL === 'text' ? 40 : 120, color: $('bcolor').value, text, codeRef: $('bref').value || undefined } });
+  } else if (BTOOL === 'arrow') boardOp({ op: 'add', shape: { type: 'arrow', x, y, w: 140, h: 40, color: $('bcolor').value } });
+};
+svg.onmousemove = (e) => {
+  const [x, y] = svgPt(e);
+  if (BSTROKE) {
+    const last = BSTROKE[BSTROKE.length - 1];
+    if (Math.hypot(x - last[0], y - last[1]) > 6 && BSTROKE.length < 500) { BSTROKE.push([x, y]); }
+    return;
+  }
+  if (BDRAG) {
+    const s = SHAPES[BDRAG.id];
+    if (s) { s.x = Math.round(BDRAG.ox + (x - BDRAG.px)); s.y = Math.round(BDRAG.oy + (y - BDRAG.py)); boardDraw(); }
+    return;
+  }
+};
+svg.onmouseup = (e) => {
+  if (BSTROKE) {
+    const pts = BSTROKE; BSTROKE = null;
+    if (pts.length > 1) boardOp({ op: 'add', shape: { type: 'draw', x: pts[0][0], y: pts[0][1], color: $('bcolor').value, points: pts } });
+    return;
+  }
+  if (BDRAG) {
+    const s = SHAPES[BDRAG.id], d = BDRAG;
+    BDRAG = null;
+    if (s && (s.x !== d.ox || s.y !== d.oy)) boardOp({ op: 'update', id: s.id, patch: { x: s.x, y: s.y } });
+    else boardDraw();
+  }
+};
+// ---- voice (P2P WebRTC audio; hub only signals) ----
+let V = { name: null, stream: null, pcs: {}, muted: false, poll: null };
+async function voiceJoin() {
+  V.name = $('vname').value || 'voice-' + Math.floor(Math.random() * 999);
+  try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { $('vstat').textContent = 'no mic — joining listen-only (you still see who talks)'; }
+  await post('/api/voice-join', { actor: V.name });
+  $('vstat').textContent = 'in voice as ' + V.name + ' · audio is P2P, never touches the server';
+  clearInterval(V.poll);
+  V.poll = setInterval(voicePoll, 2000);
+  voicePoll();
+  setInterval(() => post('/api/voice-hb', { actor: V.name }), 20000);
+}
+async function voiceLeave() {
+  for (const pc of Object.values(V.pcs)) try { pc.close(); } catch {}
+  V.pcs = {};
+  if (V.stream) V.stream.getTracks().forEach((t) => t.stop());
+  V.stream = null;
+  clearInterval(V.poll);
+  await post('/api/voice-leave', { actor: V.name });
+  $('vstat').textContent = 'left voice'; $('vpeers').innerHTML = '';
+}
+async function voiceMute() {
+  V.muted = !V.muted;
+  if (V.stream) V.stream.getAudioTracks().forEach((t) => (t.enabled = !V.muted));
+  await post('/api/voice-join', { actor: V.name, muted: V.muted });
+  $('vstat').textContent = V.muted ? 'muted' : 'in voice as ' + V.name;
+}
+function voicePC(peer) {
+  if (V.pcs[peer]) return V.pcs[peer];
+  const pc = new RTCPeerConnection();
+  if (V.stream) V.stream.getTracks().forEach((t) => pc.addTrack(t, V.stream));
+  pc.onicecandidate = (e) => { if (e.candidate) post('/api/voice-signal', { from: V.name, to: peer, type: 'ice', data: e.candidate }); };
+  pc.ontrack = (e) => voiceTile(peer, e.streams[0]);
+  pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(pc.connectionState)) delete V.pcs[peer]; };
+  V.pcs[peer] = pc;
+  return pc;
+}
+async function voicePoll() {
+  if (!V.name) return;
+  const r = await (await fetch(HUB + `/api/voice-signal?actor=${encodeURIComponent(V.name)}`)).json().catch(() => null);
+  if (!r) return;
+  for (const s of r.signals || []) {
+    try {
+      const pc = voicePC(s.from);
+      if (s.type === 'offer') { await pc.setRemoteDescription(s.data); const ans = await pc.createAnswer(); await pc.setLocalDescription(ans); await post('/api/voice-signal', { from: V.name, to: s.from, type: 'answer', data: ans }); }
+      else if (s.type === 'answer') await pc.setRemoteDescription(s.data);
+      else if (s.type === 'ice') await pc.addIceCandidate(s.data);
+    } catch {}
+  }
+  // polite offer: lexicographically smaller name calls first (no glare)
+  for (const p of r.peers || []) {
+    if (p !== V.name && !V.pcs[p] && V.name < p && V.stream) {
+      try {
+        const pc = voicePC(p);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await post('/api/voice-signal', { from: V.name, to: p, type: 'offer', data: offer });
+      } catch {}
+    }
+  }
+  $('vpeers').innerHTML = (r.peers || []).map((p) => `<div class="node" id="vp-${p}"><span class="ring" style="background:${color(p)}"></span>${p}${p === V.name ? ' (you)' : ''}</div>`).join('');
+}
+function voiceTile(peer, stream) {
+  const audio = document.createElement('audio');
+  audio.srcObject = stream; audio.autoplay = true;
+  document.body.append(audio);
+  try {
+    const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser();
+    src.connect(an);
+    const buf = new Uint8Array(an.frequencyBinCount);
+    const loop = () => {
+      an.getByteTimeDomainData(buf);
+      const loud = buf.some((v) => Math.abs(v - 128) > 24);
+      const el = $('vp-' + CSS.escape(peer));
+      if (el) el.style.outline = loud ? '2px solid #34d399' : '';
+      if (document.body.contains(audio)) requestAnimationFrame(loop); else ctx.close();
+    };
+    loop();
+  } catch {}
+}
+setInterval(refresh, 5000); refresh(); boardLoad();
+</script></body></html>

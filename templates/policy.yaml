@@ -1,0 +1,17 @@
+version: 1
+paths:
+  protected: ["infra/**", ".github/**", "**/*.pem"]   # approve-and-pair
+  generated: ["src/gen/**", "**/*.lock"]              # mesh-owned, hard-leased
+blast_radius:
+  max_files_per_changeset: 40
+  max_deleted_lines: 400
+commands:
+  deny: ["rm -rf /*", "git push --force*", "git reset --hard*", "DROP TABLE*"]
+  require_approval: ["npm publish", "terraform apply*"]
+network:
+  egress_allow: ["registry.npmjs.org", "pypi.org", "api.anthropic.com"]
+budgets:
+  per_lane: { tokens: 2000000, wall_minutes: 180 }
+landing:
+  default: approve-to-land
+  auto: ["docs/**", "**/*.test.*"]

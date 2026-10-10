@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentMesh — Autonomous Multi-Agent Swarm Coordination Platform</title>
+  <meta name="description" content="Production-grade multi-agent coordination kernel featuring Delta-State Semantic CRDTs, MACP bounded sessions, Epistemic Merkle-DAG state sourcing, copy-on-write lanes, and universal deployment.">
+  <meta name="theme-color" content="#07090e">
+
+  <!-- OpenGraph / Social Metadata -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AgentMesh — Multi-Agent Swarm Platform">
+  <meta property="og:description" content="One repo, one shared system. Delta-State Semantic CRDT, MACP 5-mode coordination kernel, P2P WebRTC data mesh.">
+  <meta property="twitter:card" content="summary_large_image">
+
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <!-- Fonts & Stylesheet -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Application Header -->
+  <header class="app-header" id="main-header">
+    <div class="brand-section">
+      <a href="/" class="logo-badge" id="brand-link">
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <span>AgentMesh</span>
+      </a>
+      <span class="status-pill sim" id="hub-status-badge">
+        <span class="status-dot"></span> ⚡ AUTONOMOUS SWARM SIMULATOR
+      </span>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" id="navigation-tabs" aria-label="Main Navigation">
+      <button data-tab="topo" class="active" id="tab-btn-topo">1. Topology</button>
+      <button data-tab="sim" id="tab-btn-sim">2. Swarm</button>
+      <button data-tab="crdt" id="tab-btn-crdt">3. Semantic CRDT</button>
+      <button data-tab="macp" id="tab-btn-macp">4. MACP Kernel</button>
+      <button data-tab="dag" id="tab-btn-dag">5. Merkle DAG</button>
+      <button data-tab="board" id="tab-btn-board">6. Board</button>
+      <button data-tab="voice" id="tab-btn-voice">7. Voice &amp; P2P</button>
+      <button data-tab="health" id="tab-btn-health">8. Health</button>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <button class="btn-ghost" id="btn-sound-toggle">🔊 Audio: On</button>
+      <button class="btn-primary" id="btn-connect-hub">Connect Hub</button>
+    </div>
+  </header>
+
+  <!-- Main Content Stage -->
+  <main class="app-main" id="content-stage">
+    
+    <!-- Top Level Metric Stats Row -->
+    <section class="metric-row" aria-label="Mesh Statistics">
+      <div class="metric-card">
+        <div class="label">Event Seq</div>
+        <div class="val" id="metric-seq">#42</div>
+        <div class="sub">SQLite WAL Log</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Trunk Head</div>
+        <div class="val" id="metric-trunk">v1.2.0-main</div>
+        <div class="sub">CAS-gated Integration</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Active Agents</div>
+        <div class="val" id="metric-agents">4</div>
+        <div class="sub">CoW Lanes Active</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Intent Collision</div>
+        <div class="val" id="metric-intents" style="color:var(--cyan-core);">0 nominal</div>
+        <div class="sub">MACP Ladder Ready</div>
+      </div>
+    </section>
+
+    <!-- Tab 1: Live Interactive Topology Graph -->
+    <section class="view-panel active" id="view-topo" aria-labelledby="heading-topo">
+      <div class="grid-2">
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h1 style="font-size:1.05rem;" id="heading-topo">Mesh Topology &amp; Active Intent Conduits</h1>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-ghost" id="btn-toggle-sim">Pause Simulator</button>
+              <button class="btn-ghost" id="btn-trigger-collision" style="color:var(--amber-warn);border-color:rgba(251,191,36,0.3);">Simulate Collision</button>
+            </div>
+          </div>
+          <div class="topology-stage">
+            <svg id="topology-svg" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="topo-controls">
+              <span style="font-size:0.75rem;color:var(--text-dim);padding:4px 8px;">Conduits: Real-Time Vector Clock Sync</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Autonomous Swarm Simulator -->
+    <section class="view-panel" id="view-sim" aria-labelledby="heading-sim">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="heading-sim">Autonomous Engineering Swarm</h2>
+          <span style="font-size:0.75rem;color:var(--text-dim);">Copy-On-Write Lanes &amp; Micro-VM Sandboxes</span>
+        </div>
+        <div class="grid-4" id="agent-cards-container"></div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Semantic CRDT Engine -->
+    <section class="view-panel" id="view-crdt" aria-labelledby="heading-crdt">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="heading-crdt">AST-Symbol Semantic Registers</h2>
+            <span style="font-size:0.75rem;color:var(--emerald-ok);">Strong Eventual Consistency (SEC)</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="crdt-matrix" aria-label="CRDT Registers Table">
+              <thead>
+                <tr>
+                  <th>Symbol / Contract Node</th>
+                  <th>Value</th>
+                  <th>Author</th>
+                  <th>Lamport</th>
+                </tr>
+              </thead>
+              <tbody id="crdt-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Causal Vector Clock</h2>
+            <span style="font-size:0.75rem;color:var(--cyan-core);">Monotonic Lamport Clocks</span>
+          </div>
+          <pre id="vector-clock-view" style="font-family:var(--font-mono);font-size:0.85rem;color:var(--cyan-core);background:rgba(0,0,0,0.35);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border-card);"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: MACP 5-Mode Kernel -->
+    <section class="view-panel" id="view-macp" aria-labelledby="heading-macp">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="heading-macp">MACP Coordination Sessions</h2>
+          <span style="font-size:0.75rem;color:var(--purple-accent);">RFC-Grade Bounded Sessions</span>
+        </div>
+        <div id="macp-sessions-container"></div>
+      </div>
+    </section>
+
+    <!-- Tab 5: Epistemic Merkle DAG -->
+    <section class="view-panel" id="view-dag" aria-labelledby="heading-dag">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="heading-dag">Cryptographic Merkle DAG Provenance</h2>
+          <span style="font-size:0.75rem;color:var(--cyan-core);">Content-Addressed Deterministic Replay</span>
+        </div>
+        <div class="dag-timeline" id="dag-timeline-container"></div>
+      </div>
+    </section>
+
+    <!-- Tab 6: Collaborative Whiteboard -->
+    <section class="view-panel" id="view-board" aria-labelledby="heading-board">
+      <div class="card">
+        <div class="card-header">
+          <h2 id="heading-board">Collaborative Whiteboard</h2>
+          <span style="font-size:0.75rem;color:var(--text-dim);">Op-Synced with Code References (&fnof;)</span>
+        </div>
+        <div class="board-toolbar">
+          <button class="active" data-tool="draw" id="btn-tool-draw">Pen</button>
+          <button data-tool="select" id="btn-tool-select">Select</button>
+          <button data-tool="rect" id="btn-tool-rect">Rect</button>
+          <button data-tool="note" id="btn-tool-note">Sticky Note</button>
+          <select id="board-color" aria-label="Whiteboard Color Picker">
+            <option value="#38bdf8">Electric Cyan</option>
+            <option value="#34d399">Emerald</option>
+            <option value="#fbbf24">Amber</option>
+            <option value="#f43f5e">Rose</option>
+            <option value="#a855f7">Purple</option>
+          </select>
+          <button class="btn-ghost" onclick="toast('Exported tldraw JSON representation.', 'ok')">Export JSON</button>
+        </div>
+        <svg class="board-svg" id="board-svg"></svg>
+      </div>
+    </section>
+
+    <!-- Tab 7: Voice & P2P Swarm -->
+    <section class="view-panel" id="view-voice" aria-labelledby="heading-voice">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="heading-voice">WebRTC P2P Voice Room</h2>
+            <span style="font-size:0.75rem;color:var(--emerald-ok);">Zero Server Media Bill</span>
+          </div>
+          <div class="voice-grid">
+            <div class="voice-peer-card">
+              <div class="voice-avatar speaking" aria-label="You">ME</div>
+              <div style="font-weight:700;font-size:0.85rem;">You (Local)</div>
+              <div style="font-size:0.72rem;color:var(--emerald-ok);">P2P Channel Active</div>
+            </div>
+            <div class="voice-peer-card">
+              <div class="voice-avatar" aria-label="AI Lead">AI</div>
+              <div style="font-weight:700;font-size:0.85rem;">Swarm Lead</div>
+              <div style="font-size:0.72rem;color:var(--cyan-core);">Listening</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>P2P DataChannel Mesh</h2>
+            <span style="font-size:0.75rem;color:var(--cyan-core);">&lt; 5ms Latency Gossiping</span>
+          </div>
+          <div style="padding:10px;font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:8px;">
+            <div>● Direct WebRTC DataChannels bypass the central server for CRDT delta gossiping.</div>
+            <div>● Initial signaling coordinated via ephemeral mailbox (60s TTL).</div>
+            <div>● Zero coordinator bottlenecks during rapid concurrent generation.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 8: Health, Audit & Observability -->
+    <section class="view-panel" id="view-health" aria-labelledby="heading-health">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="heading-health">Observability &amp; Guard Metrics</h2>
+            <span style="font-size:0.75rem;color:var(--emerald-ok);">OpenTelemetry &amp; /metrics</span>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:0.8rem;background:rgba(0,0,0,0.3);padding:12px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:6px;">
+            <div>mesh_uptime_seconds: 43200</div>
+            <div>mesh_sqlite_wal_events: 1042</div>
+            <div>mesh_rate_limit_trips_total: 0</div>
+            <div>mesh_crdt_convergence_ratio: 1.000</div>
+            <div>mesh_harness_verdicts_passed: 124</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Capabilities &amp; Security</h2>
+            <span style="font-size:0.75rem;color:var(--purple-accent);">Ed25519 Tokens</span>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:10px;">
+            <div>Auth Enforcement: <strong>Ed25519 Capability Tokens</strong></div>
+            <div>Sandbox Isolation: <strong>L4 Micro-VM / Container Drivers</strong></div>
+            <div>Boundary Guard: <strong>Strict Hard Lease 409 Refusal</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Connect Remote Hub Modal Dialog -->
+  <div class="modal-overlay" id="connect-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <h3 id="modal-title">Connect to AgentMesh Hub</h3>
+      <p>Enter the URL of your local or cloud-hosted AgentMesh Core daemon to monitor live multi-agent events.</p>
+      <div class="form-group">
+        <label for="input-hub-url">Hub Endpoint URL</label>
+        <input type="text" id="input-hub-url" placeholder="http://localhost:7777" value="http://localhost:7777">
+      </div>
+      <div class="form-group">
+        <label for="input-hub-token">Capability Token (Optional)</label>
+        <input type="password" id="input-hub-token" placeholder="ed25519-token-...">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+        <button class="btn-ghost" id="btn-modal-cancel">Cancel</button>
+        <button class="btn-primary" id="btn-modal-save">Connect &amp; Stream</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer" id="main-footer">
+    <div>AgentMesh v1.2.0 — Production-grade multi-agent coordination kernel. MIT License.</div>
+    <div style="display:flex;gap:16px;">
+      <a href="https://github.com" target="_blank" rel="noreferrer">Documentation</a>
+      <a href="/a2a/agent-card.json" target="_blank">A2A Agent Card</a>
+      <a href="/metrics" target="_blank">Metrics</a>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

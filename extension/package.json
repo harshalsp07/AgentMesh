@@ -1,0 +1,37 @@
+{
+  "name": "agentmesh-vscode",
+  "displayName": "AgentMesh",
+  "version": "1.1.0",
+  "description": "Live lanes, leases, contracts + canvas for AgentMesh rooms",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "configuration": {
+    "title": "AgentMesh",
+    "properties": {
+      "mesh.hub": { "type": "string", "default": "http://localhost:7777", "description": "Hub URL" },
+      "mesh.cli": { "type": "string", "default": "node src/mesh.mjs", "description": "mesh CLI command" }
+    }
+  },
+  "contributes": {
+    "viewsContainers": { "activitybar": [{ "id": "mesh", "title": "Mesh", "icon": "$(hubot)" }] },
+    "views": {
+      "mesh": [
+        { "id": "meshTeam", "name": "Team" },
+        { "id": "meshQueue", "name": "Queue" },
+        { "id": "meshContracts", "name": "Contracts" },
+        { "id": "meshDecisions", "name": "Inbox & Decisions" }
+      ]
+    },
+    "commands": [
+      { "command": "mesh.showCanvas", "title": "Mesh: Show Live Canvas" },
+      { "command": "mesh.attach", "title": "Mesh: Attach to Hub" },
+      { "command": "mesh.declareIntent", "title": "Mesh: Declare Intent" },
+      { "command": "mesh.checkpoint", "title": "Mesh: Checkpoint" },
+      { "command": "mesh.undo", "title": "Mesh: Undo" },
+      { "command": "mesh.propose", "title": "Mesh: Propose Changeset" },
+      { "command": "mesh.setup", "title": "Mesh: One-Keypress Setup" }
+    ]
+  }
+}
