@@ -16,6 +16,86 @@ node src/mesh.mjs status --root .mesh
 node scripts/doctor.mjs
 ```
 
+## Architecture & System Design
+
+```mermaid
+flowchart TB
+    subgraph Clients ["Clients & IDE Integrations"]
+        WebUI["Web Canvas & Simulator (Vercel / Netlify / Cloudflare / GH Pages)"]
+        CLI["CLI Tool (bin/mesh)"]
+        MCP["MCP Stdio Bridge (Cursor / Windsurf / Claude Code)"]
+        A2A["A2A Standard Gateway (/a2a/agent-card.json)"]
+    end
+
+    subgraph Hub ["AgentMesh Core Daemon (:7777)"]
+        Router["HTTP / SSE / WebSocket Gateway"]
+        CRDT["Delta-State Semantic CRDT Engine"]
+        MACP["MACP 5-Mode Kernel (Decision, Proposal, Quorum)"]
+        DAG["Epistemic Merkle-DAG Store (Provenance & Replay)"]
+        P2PSig["P2P WebRTC Signaling Mailbox"]
+        Lanes["MeshVCS Copy-On-Write Lanes (Git / JJ / SQLite)"]
+        Harness["Test Harness (T0-T2) & Integration Queue"]
+        DB[("SQLite WAL Event Store")]
+    end
+
+    subgraph Swarm ["P2P Agent Mesh"]
+        AgentA["Agent Alpha (Frontend)"] <-->|WebRTC DataChannel| AgentB["Agent Beta (Backend)"]
+        AgentB <-->|WebRTC DataChannel| AgentC["Agent Gamma (Auditor)"]
+        AgentA <-->|WebRTC DataChannel| AgentC
+    end
+
+    WebUI --> Router
+    CLI --> Router
+    MCP --> Router
+    A2A --> Router
+    Router --> CRDT
+    Router --> MACP
+    Router --> DAG
+    Router --> P2PSig
+    Router --> Lanes
+    Router --> Harness
+    Router --> DB
+    Swarm -.->|Signaling| P2PSig
+```
+
+## Next-Gen Multi-Agent Synchronization Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Human Engineer
+    participant AgentA as Agent Alpha (UI)
+    participant Hub as AgentMesh Hub
+    participant AgentB as Agent Beta (Core)
+
+    AgentA->>Hub: Declare Intent (AST Forecast & Soft Lease)
+    AgentB->>Hub: Concurrent Intent on Overlapping Scope
+    Hub-->>AgentA: Tier-1 Drift Alert & Overlap Detected
+    Hub-->>AgentB: Tier-1 Drift Alert & Overlap Detected
+    
+    note over AgentA,AgentB: MACP Negotiation Ladder & Semantic CRDT
+    AgentA->>AgentB: Round 1: Scope Partitioning (AST Symbol Split)
+    AgentA->>Hub: Exchange Delta-State Vectors (Lamport Clocks)
+    Hub->>Hub: Commutative CRDT Merge (Strong Eventual Consistency)
+
+    Hub->>Hub: Run Test Harness (T0 Secret/Syntax -> T1 Unit -> T2 Integration)
+    Hub->>Hub: CAS Advance Trunk Head
+    Hub-->>Dev: Real-time UI Update & Epistemic Merkle DAG Commit
+```
+
+## Universal Deployment Matrix
+
+```mermaid
+flowchart LR
+    Source["AgentMesh Platform (site/)"] --> Vercel["Vercel (vercel.json)"]
+    Source --> Netlify["Netlify (netlify.toml)"]
+    Source --> Cloudflare["Cloudflare Pages (wrangler.toml)"]
+    Source --> GHPages["GitHub Pages (.github/workflows)"]
+    Source --> DockerHub["Docker Hub & GHCR (Multi-Arch)"]
+    Source --> PaaS["Render / Railway (1-Click Blueprints)"]
+```
+
+
 ## Collaborating (the best parts)
 
 - **Roster + availability:** `mesh roster join <name> --role human|agent --skills a,b --owner <human>`; `mesh roster avail <name> focus|dnd|available`. Focus/DND never get toasts — digests only.
