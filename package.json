@@ -23,6 +23,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "node src/hub.mjs",
+    "start": "node src/hub.mjs",
     "demo": "node demo.mjs",
     "demo:1": "node demo-phase1.mjs",
     "demo:2": "node demo-phase2.mjs",

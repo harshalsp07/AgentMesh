@@ -22,6 +22,9 @@
       openai: { key: localStorage.getItem('mesh_key_openai') || '', name: 'OpenAI', defaultModel: 'gpt-4o' },
       ollama: { endpoint: localStorage.getItem('mesh_endpoint_ollama') || 'http://localhost:11434', name: 'Ollama (Local)', defaultModel: 'llama3.3' },
       openrouter: { key: localStorage.getItem('mesh_key_openrouter') || '', name: 'OpenRouter / DeepSeek', defaultModel: 'anthropic/claude-3.5-sonnet' },
+      groq: { key: localStorage.getItem('mesh_key_groq') || '', name: 'Groq Cloud', defaultModel: 'llama-3.3-70b-versatile' },
+      mistral: { key: localStorage.getItem('mesh_key_mistral') || '', name: 'Mistral AI', defaultModel: 'codestral-latest' },
+      xai: { key: localStorage.getItem('mesh_key_xai') || '', name: 'xAI (Grok)', defaultModel: 'grok-2-latest' },
     },
 
     // Swarm Agent Roster
@@ -133,12 +136,18 @@
     state.providers.openai.key = localStorage.getItem('mesh_key_openai') || '';
     state.providers.ollama.endpoint = localStorage.getItem('mesh_endpoint_ollama') || 'http://localhost:11434';
     state.providers.openrouter.key = localStorage.getItem('mesh_key_openrouter') || '';
+    state.providers.groq.key = localStorage.getItem('mesh_key_groq') || '';
+    state.providers.mistral.key = localStorage.getItem('mesh_key_mistral') || '';
+    state.providers.xai.key = localStorage.getItem('mesh_key_xai') || '';
 
     if ($('key-gemini')) $('key-gemini').value = state.providers.gemini.key;
     if ($('key-anthropic')) $('key-anthropic').value = state.providers.anthropic.key;
     if ($('key-openai')) $('key-openai').value = state.providers.openai.key;
     if ($('endpoint-ollama')) $('endpoint-ollama').value = state.providers.ollama.endpoint;
     if ($('key-openrouter')) $('key-openrouter').value = state.providers.openrouter.key;
+    if ($('key-groq')) $('key-groq').value = state.providers.groq.key;
+    if ($('key-mistral')) $('key-mistral').value = state.providers.mistral.key;
+    if ($('key-xai')) $('key-xai').value = state.providers.xai.key;
 
     updateProviderBadge();
   }
@@ -149,12 +158,18 @@
     state.providers.openai.key = ($('key-openai')?.value || '').trim();
     state.providers.ollama.endpoint = ($('endpoint-ollama')?.value || 'http://localhost:11434').trim();
     state.providers.openrouter.key = ($('key-openrouter')?.value || '').trim();
+    state.providers.groq.key = ($('key-groq')?.value || '').trim();
+    state.providers.mistral.key = ($('key-mistral')?.value || '').trim();
+    state.providers.xai.key = ($('key-xai')?.value || '').trim();
 
     localStorage.setItem('mesh_key_gemini', state.providers.gemini.key);
     localStorage.setItem('mesh_key_anthropic', state.providers.anthropic.key);
     localStorage.setItem('mesh_key_openai', state.providers.openai.key);
     localStorage.setItem('mesh_endpoint_ollama', state.providers.ollama.endpoint);
     localStorage.setItem('mesh_key_openrouter', state.providers.openrouter.key);
+    localStorage.setItem('mesh_key_groq', state.providers.groq.key);
+    localStorage.setItem('mesh_key_mistral', state.providers.mistral.key);
+    localStorage.setItem('mesh_key_xai', state.providers.xai.key);
 
     updateProviderBadge();
     closeModal('settings-modal');
@@ -167,6 +182,9 @@
     if (state.providers.anthropic.key) configured.push('Claude');
     if (state.providers.openai.key) configured.push('OpenAI');
     if (state.providers.openrouter.key) configured.push('OpenRouter');
+    if (state.providers.groq.key) configured.push('Groq');
+    if (state.providers.mistral.key) configured.push('Mistral');
+    if (state.providers.xai.key) configured.push('xAI');
     configured.push('Ollama'); // Ollama is local, always enabled
 
     const badgeText = $('active-providers-count');
@@ -1405,6 +1423,9 @@ Always structure your output with:
     $('btn-test-openai')?.addEventListener('click', () => testProviderPing('openai'));
     $('btn-test-ollama')?.addEventListener('click', () => testProviderPing('ollama'));
     $('btn-test-openrouter')?.addEventListener('click', () => testProviderPing('openrouter'));
+    $('btn-test-groq')?.addEventListener('click', () => testProviderPing('groq'));
+    $('btn-test-mistral')?.addEventListener('click', () => testProviderPing('mistral'));
+    $('btn-test-xai')?.addEventListener('click', () => testProviderPing('xai'));
 
     // Connect Hub Modal
     $('btn-connect-hub')?.addEventListener('click', () => openModal('connect-modal'));

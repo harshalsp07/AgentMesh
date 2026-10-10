@@ -1,20 +1,40 @@
 // src/ai.mjs — Universal Multi-Provider AI Coordination Gateway
-// Connects AgentMesh to Google Antigravity/Gemini, OpenAI, Anthropic, Ollama, DeepSeek, OpenRouter, and Groq.
+// Connects AgentMesh to Google Antigravity/Gemini, OpenAI, Anthropic, Ollama, DeepSeek, OpenRouter, Groq, Mistral, and xAI.
 
 export const SUPPORTED_PROVIDERS = {
   gemini: {
     name: 'Google Antigravity & Gemini',
     description: 'High-speed reasoning and deep context window multi-agent provider.',
     defaultModel: 'gemini-2.5-flash',
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    models: [
+      'gemini-2.5-flash',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash-thinking',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-2.0-pro-exp-02-05',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+    ],
     envKey: 'GEMINI_API_KEY',
     authType: 'query_or_header',
   },
   openai: {
     name: 'OpenAI',
-    description: 'Industry-standard GPT-4o, o1, o3-mini models with JSON schema tool calling.',
+    description: 'Industry-standard o3-mini, o1, GPT-4o, and GPT-4.5 models with JSON schema tool calling.',
     defaultModel: 'gpt-4o',
-    models: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini', 'gpt-4-turbo'],
+    models: [
+      'o3-mini',
+      'o3',
+      'o1',
+      'o1-mini',
+      'gpt-4.5-preview',
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
+      'chatgpt-4o-latest',
+    ],
     envKey: 'OPENAI_API_KEY',
     authType: 'bearer',
   },
@@ -22,7 +42,12 @@ export const SUPPORTED_PROVIDERS = {
     name: 'Anthropic Claude',
     description: 'Claude 3.7 Sonnet & 3.5 Haiku with exceptional software engineering capabilities.',
     defaultModel: 'claude-3-7-sonnet',
-    models: ['claude-3-7-sonnet', 'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus'],
+    models: [
+      'claude-3-7-sonnet',
+      'claude-3-5-sonnet',
+      'claude-3-5-haiku',
+      'claude-3-opus',
+    ],
     envKey: 'ANTHROPIC_API_KEY',
     authType: 'header_x_api_key',
   },
@@ -31,7 +56,18 @@ export const SUPPORTED_PROVIDERS = {
     description: 'Zero-cloud, 100% private local LLM running directly on your workstation.',
     defaultModel: 'llama3.3',
     defaultEndpoint: 'http://localhost:11434',
-    models: ['llama3.3', 'deepseek-r1', 'qwen2.5-coder', 'mistral', 'phi4'],
+    models: [
+      'llama3.3',
+      'llama3.2',
+      'deepseek-r1',
+      'qwen2.5-coder',
+      'qwen2.5',
+      'codestral',
+      'mistral-small',
+      'phi4',
+      'gemma2',
+      'starcoder2',
+    ],
     envKey: 'OLLAMA_HOST',
     authType: 'none',
   },
@@ -39,7 +75,11 @@ export const SUPPORTED_PROVIDERS = {
     name: 'DeepSeek',
     description: 'DeepSeek V3 and DeepSeek R1 reasoning models with math and code proficiency.',
     defaultModel: 'deepseek-chat',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: [
+      'deepseek-reasoner',
+      'deepseek-chat',
+      'deepseek-coder',
+    ],
     envKey: 'DEEPSEEK_API_KEY',
     authType: 'bearer',
   },
@@ -47,7 +87,20 @@ export const SUPPORTED_PROVIDERS = {
     name: 'OpenRouter',
     description: 'Unified router bridging hundreds of open and proprietary AI models.',
     defaultModel: 'anthropic/claude-3.5-sonnet',
-    models: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'google/gemini-2.5-flash', 'deepseek/deepseek-r1'],
+    models: [
+      'anthropic/claude-3.7-sonnet',
+      'anthropic/claude-3.5-sonnet',
+      'openai/o3-mini',
+      'openai/gpt-4o',
+      'openai/o1',
+      'google/gemini-2.5-flash',
+      'google/gemini-2.0-flash-001',
+      'deepseek/deepseek-r1',
+      'deepseek/deepseek-chat',
+      'meta-llama/llama-3.3-70b-instruct',
+      'qwen/qwen-2.5-coder-32b-instruct',
+      'mistralai/codestral-2501',
+    ],
     envKey: 'OPENROUTER_API_KEY',
     authType: 'bearer',
   },
@@ -55,8 +108,39 @@ export const SUPPORTED_PROVIDERS = {
     name: 'Groq Cloud',
     description: 'Ultra-low latency LPU inference engine for lightning-fast swarm orchestration.',
     defaultModel: 'llama-3.3-70b-versatile',
-    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+    models: [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+      'deepseek-r1-distill-llama-70b',
+      'qwen-2.5-coder-32b',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it',
+    ],
     envKey: 'GROQ_API_KEY',
+    authType: 'bearer',
+  },
+  mistral: {
+    name: 'Mistral AI',
+    description: 'European frontier models including Codestral and Mistral Large for enterprise code.',
+    defaultModel: 'codestral-latest',
+    models: [
+      'codestral-latest',
+      'mistral-large-latest',
+      'mistral-small-latest',
+      'pixtral-large-latest',
+    ],
+    envKey: 'MISTRAL_API_KEY',
+    authType: 'bearer',
+  },
+  xai: {
+    name: 'xAI (Grok)',
+    description: 'Grok 2 frontier reasoning and real-time generation engine.',
+    defaultModel: 'grok-2-latest',
+    models: [
+      'grok-2-latest',
+      'grok-2-mini',
+    ],
+    envKey: 'XAI_API_KEY',
     authType: 'bearer',
   },
 };
@@ -264,12 +348,14 @@ export async function executeChatCompletion(params = {}) {
     }
   }
 
-  // 4. OpenAI & OpenAI-compatible (DeepSeek, OpenRouter, Groq)
+  // 4. OpenAI & OpenAI-compatible (DeepSeek, OpenRouter, Groq, Mistral, xAI)
   const openAiEndpoints = {
     openai: 'https://api.openai.com/v1/chat/completions',
     deepseek: 'https://api.deepseek.com/chat/completions',
     openrouter: 'https://openrouter.ai/api/v1/chat/completions',
     groq: 'https://api.groq.com/openai/v1/chat/completions',
+    mistral: 'https://api.mistral.ai/v1/chat/completions',
+    xai: 'https://api.xai.com/v1/chat/completions',
   };
 
   const targetUrl = endpoint || openAiEndpoints[provider];
@@ -290,15 +376,24 @@ export async function executeChatCompletion(params = {}) {
         headers['X-Title'] = 'AgentMesh Swarm Coordinator';
       }
 
+      // Handle OpenAI reasoning model (o1, o3-mini) parameter differences
+      const isReasoningModel = provider === 'openai' && (targetModel.startsWith('o1') || targetModel.startsWith('o3'));
+      const reqBody = {
+        model: targetModel,
+        messages: messages.map((m) => ({ role: m.role || 'user', content: m.content || '' })),
+      };
+
+      if (isReasoningModel) {
+        reqBody.max_completion_tokens = maxTokens;
+      } else {
+        reqBody.max_tokens = maxTokens;
+        if (temperature !== undefined) reqBody.temperature = temperature;
+      }
+
       const res = await fetch(targetUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: targetModel,
-          messages: messages.map((m) => ({ role: m.role || 'user', content: m.content || '' })),
-          temperature,
-          max_tokens: maxTokens,
-        }),
+        body: JSON.stringify(reqBody),
         signal: AbortSignal.timeout(30000),
       });
 
