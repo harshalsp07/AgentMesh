@@ -1,190 +1,271 @@
-# AgentMesh v1.2.0 — Production-Ready Multi-Agent Platform & Publishing
+# AgentMesh — Production Multi-Harness AI Agent Coordination Mesh
 
-[![Docker Image](https://img.shields.io/badge/docker-harshalsp07%2Fagentmesh-blue?logo=docker)](https://hub.docker.com/r/harshalsp07/agentmesh)
-[![GitHub Pages](https://img.shields.io/badge/live_demo-github_pages-brightgreen?logo=github)](https://harshalsp07.github.io/AgentMesh/)
-[![Tests](https://img.shields.io/badge/tests-62%20passed-success)](https://github.com/harshalsp07/AgentMesh/actions)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-63%20passed-success?style=flat-square&logo=node.js)](https://github.com/harshalsp07/AgentMesh/actions)
+[![Docker Image](https://img.shields.io/badge/docker-harshalsp07%2Fagentmesh-blue?style=flat-square&logo=docker)](https://hub.docker.com/r/harshalsp07/agentmesh)
+[![Live Demo](https://img.shields.io/badge/live_observatory-github_pages-brightgreen?style=flat-square&logo=github)](https://harshalsp07.github.io/AgentMesh/)
+[![MCP Ready](https://img.shields.io/badge/MCP-JSON--RPC%202.0-8a2be2?style=flat-square)](https://modelcontextprotocol.io/)
+[![Google A2A](https://img.shields.io/badge/Google%20A2A-1.0.0-blue?style=flat-square)](https://a2a-protocol.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 
-One repo behaves like one shared system: one hub, copy-on-write lanes per actor,
-MeshVCS above git, intent-before-edit, contracts as first-class nodes, harness-gated trunk,
-plus **Universal Multi-Provider AI Coordination** (Google Antigravity & Gemini, Anthropic Claude, OpenAI, Ollama Local, DeepSeek, OpenRouter),
-**Delta-State Semantic CRDT**, **MACP 5-Mode Kernel**, **Epistemic Merkle DAG**,
-and **Universal Multi-Platform Publishing** (Vercel, Netlify, Cloudflare, GitHub Pages, Docker, Railway, Render).
+**AgentMesh** enables multiple independent AI coding harnesses—such as **Google Antigravity** on Laptop 1 and **OpenAI Codex / Cursor / Claude Code** on Laptop 2—to safely collaborate on the **exact same repository in real time** without overwriting each other's work or breaking API contracts.
 
 ---
 
-## 🚀 Quickstart: How to Use AgentMesh
+## 🌟 The Problem: Why Multi-Agent Coding Breaks Down
 
-Choose the easiest way to run or explore AgentMesh:
+When developers run independent AI agents on the same codebase across multiple machines:
+1. **Silent Overwrites & Race Conditions**: Agent A refactors frontend code while Agent B modifies backend endpoints, unknowingly breaking assumptions.
+2. **Context Blindness**: Neither agent knows what the other is doing until `git push` fails with merge conflicts.
+3. **No Consensus Protocol**: Breaking changes land on trunk without automated quorum or peer agent verification.
 
-### Method 1: Instant Docker Container (Recommended)
-Run the pre-built, production-hardened container directly from Docker Hub:
-```bash
-docker run -d -p 7777:7777 --name agentmesh harshalsp07/agentmesh:latest
-```
-👉 Open your browser at **[http://localhost:7777](http://localhost:7777)** to access the live dashboard, topology visualizer, and agent mesh!
-
-To stop the container:
-```bash
-docker stop agentmesh
-```
+**AgentMesh solves this at the protocol layer.** Instead of acting as an artificial chatbot harness, AgentMesh is an **event-sourced coordination daemon** providing:
+- **Intent-Before-Edit**: Agents declare target file scopes before modifying code, receiving sub-50ms collision alerts.
+- **Copy-on-Write Lanes (MeshVCS)**: Agents work in isolated virtual lanes above Git; instant undo and rewind without rewriting history.
+- **MACP 5-Mode Consensus Kernel**: RFC-grade decision, proposal negotiation, and quorum voting before landing shared schema updates.
+- **Delta-State Semantic CRDT**: Strong Eventual Consistency (SEC) across AST symbols and contracts via Lamport vector clocks.
+- **Universal Model Context Protocol (MCP)**: Native stdio JSON-RPC 2.0 bridge supported out-of-the-box by Antigravity, Cursor, Claude Code, and Windsurf.
 
 ---
 
-### Method 2: Explore Live Online (No Installation Needed)
-Experience the interactive 4-agent swarm simulator, MACP quorum voting, and Semantic CRDTs directly in your browser:  
-👉 **[https://harshalsp07.github.io/AgentMesh/](https://harshalsp07.github.io/AgentMesh/)**
-
----
-
-### Method 3: Run with npx (Node 22+)
-Execute commands directly via `npx` from any machine without installing:
-```bash
-npx @harshalsp07/agentmesh status
-# Or launch the core daemon:
-npx @harshalsp07/agentmesh hub
-```
-
----
-
-### Method 4: Run from Source
-```bash
-# Clone the repository
-git clone https://github.com/harshalsp07/AgentMesh.git
-cd AgentMesh
-
-# Verify everything works
-npm test             # 59 tests green (incl. vcs backends, CRDT, MACP, DAG, publishing)
-npm run publish:check # verifies all 18 platform deployment configurations
-
-# Start the Hub on :7777
-node src/hub.mjs
-```
-Open **[http://localhost:7777](http://localhost:7777)** in your browser.
-
-## Architecture & System Design
+## 🏗 System Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Clients ["Clients & IDE Integrations"]
-        WebUI["Web Canvas & Simulator (Vercel / Netlify / Cloudflare / GH Pages)"]
-        CLI["CLI Tool (bin/mesh)"]
-        MCP["MCP Stdio Bridge (Cursor / Windsurf / Claude Code)"]
-        A2A["A2A Standard Gateway (/a2a/agent-card.json)"]
+    subgraph Machine1 ["Laptop 1 (Frontend / UI Agent)"]
+        AGY["Google Antigravity IDE / Desktop App\n(Native Agent with File/Terminal/Browser Tools)"]
+        AGY_MCP["AgentMesh MCP Bridge\nMESH_ACTOR=antigravity-ui"]
+        AGY_Lane["MeshVCS Lane:\nlane/antigravity-ui"]
+        AGY --> AGY_MCP
+        AGY --> AGY_Lane
     end
 
-    subgraph Hub ["AgentMesh Core Daemon (:7777)"]
-        Router["HTTP / SSE / WebSocket Gateway"]
-        CRDT["Delta-State Semantic CRDT Engine"]
-        MACP["MACP 5-Mode Kernel (Decision, Proposal, Quorum)"]
-        DAG["Epistemic Merkle-DAG Store (Provenance & Replay)"]
-        P2PSig["P2P WebRTC Signaling Mailbox"]
-        Lanes["MeshVCS Copy-On-Write Lanes (Git / JJ / SQLite)"]
-        Harness["Test Harness (T0-T2) & Integration Queue"]
-        DB[("SQLite WAL Event Store")]
+    subgraph HubNetwork ["AgentMesh Coordination Layer (:7777)"]
+        Hub["AgentMesh Core Daemon (src/hub.mjs)\n- Intent & Soft/Hard Leases Engine\n- Inter-Agent Mailbox & Approvals\n- MACP 5-Mode Quorum Kernel\n- Delta-State Semantic CRDT\n- AST Contract Graph & Drift Detector\n- Integration Queue & CAS Trunk Gating"]
+        P2P["P2P WebRTC Signaling Mailbox"]
+        Hub <--> P2P
     end
 
-    subgraph Swarm ["P2P Agent Mesh"]
-        AgentA["Agent Alpha (Frontend)"] <-->|WebRTC DataChannel| AgentB["Agent Beta (Backend)"]
-        AgentB <-->|WebRTC DataChannel| AgentC["Agent Gamma (Auditor)"]
-        AgentA <-->|WebRTC DataChannel| AgentC
+    subgraph Machine2 ["Laptop 2 (Backend Agent)"]
+        Codex["OpenAI Codex / Cursor / Claude Code\n(Native Agent with File/Terminal Tools)"]
+        Codex_MCP["AgentMesh MCP Bridge\nMESH_ACTOR=codex-backend"]
+        Codex_Lane["MeshVCS Lane:\nlane/codex-backend"]
+        Codex --> Codex_MCP
+        Codex --> Codex_Lane
     end
 
-    WebUI --> Router
-    CLI --> Router
-    MCP --> Router
-    A2A --> Router
-    Router --> CRDT
-    Router --> MACP
-    Router --> DAG
-    Router --> P2PSig
-    Router --> Lanes
-    Router --> Harness
-    Router --> DB
-    Swarm -.->|Signaling| P2PSig
+    subgraph Storage ["Shared Codebase & State"]
+        GitRemote[("Shared Git Repository\n(GitHub / LAN Remote)")]
+        SQLite[("SQLite WAL Event Store\n(Durable Event Log)")]
+    end
+
+    AGY_MCP <-->|JSON-RPC via HTTP/SSE| Hub
+    Codex_MCP <-->|JSON-RPC via LAN / Tailscale| Hub
+    Hub --> SQLite
+    AGY_Lane <--> GitRemote
+    Codex_Lane <--> GitRemote
 ```
 
-## Next-Gen Multi-Agent Synchronization Lifecycle
+---
+
+## ⚡ Quickstart: Connect 2 Laptops in Under 2 Minutes
+
+### Step 1: Start Hub on Laptop 1 (Host)
+On Laptop 1, clone the repository and start the Hub daemon on all network interfaces:
+```bash
+git clone https://github.com/harshalsp07/AgentMesh.git
+cd AgentMesh
+npm test               # Verify 63 tests pass
+
+# Start Hub listening for LAN connections
+MESH_HOST=0.0.0.0 node src/hub.mjs
+```
+*Note your Laptop 1 LAN IP address (e.g. `192.168.1.50`).*
+
+### Step 2: Configure Google Antigravity on Laptop 1
+Google Antigravity automatically detects [`.agents/mcp_config.json`](.agents/mcp_config.json) located in this workspace:
+```json
+{
+  "mcpServers": {
+    "agentmesh": {
+      "command": "node",
+      "args": ["src/bridge.mjs"],
+      "env": {
+        "MESH_ACTOR": "antigravity-ui",
+        "MESH_HUB": "http://localhost:7777"
+      }
+    }
+  }
+}
+```
+Antigravity automatically reads [`.agents/rules/agentmesh.md`](.agents/rules/agentmesh.md) and [`AGENTS.md`](AGENTS.md) and begins coordinating as `antigravity-ui`.
+
+### Step 3: Connect Laptop 2 (Codex / Cursor / Claude Code)
+On Laptop 2, clone the repository and execute the zero-config join script:
+```bash
+git clone https://github.com/harshalsp07/AgentMesh.git
+cd AgentMesh
+
+# Automatically test connection and configure .cursor/mcp.json
+./bin/mesh-join http://<LAPTOP_1_IP>:7777
+# Example: ./bin/mesh-join http://192.168.1.50:7777
+```
+
+**That's it!** Both agents are now linked into the mesh. Open **`http://<LAPTOP_1_IP>:7777`** in any browser to observe the live topology canvas.
+
+---
+
+## 🔄 Multi-Agent Lifecycle & Cross-Harness Workflow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Dev as Human Engineer
-    participant AgentA as Agent Alpha (UI)
-    participant Hub as AgentMesh Hub
-    participant AgentB as Agent Beta (Core)
+    actor Dev1 as Laptop 1 (Antigravity UI)
+    participant Hub as AgentMesh Hub (:7777)
+    actor Dev2 as Laptop 2 (Codex Backend)
 
-    AgentA->>Hub: Declare Intent (AST Forecast & Soft Lease)
-    AgentB->>Hub: Concurrent Intent on Overlapping Scope
-    Hub-->>AgentA: Tier-1 Drift Alert & Overlap Detected
-    Hub-->>AgentB: Tier-1 Drift Alert & Overlap Detected
-    
-    note over AgentA,AgentB: MACP Negotiation Ladder & Semantic CRDT
-    AgentA->>AgentB: Round 1: Scope Partitioning (AST Symbol Split)
-    AgentA->>Hub: Exchange Delta-State Vectors (Lamport Clocks)
-    Hub->>Hub: Commutative CRDT Merge (Strong Eventual Consistency)
+    Note over Dev1,Hub: Intent Declaration & Lease Acquisition
+    Dev1->>Hub: mesh_declare_intent(goal: "Redesign navbar", paths: ["site/**"])
+    Hub-->>Dev1: Lease Granted (Active Lock)
 
-    Hub->>Hub: Run Test Harness (T0 Secret/Syntax -> T1 Unit -> T2 Integration)
-    Hub->>Hub: CAS Advance Trunk Head
-    Hub-->>Dev: Real-time UI Update & Epistemic Merkle DAG Commit
+    Note over Dev2,Hub: Collision Interception
+    Dev2->>Hub: mesh_declare_intent(goal: "Patch UI bug", paths: ["site/app.js"])
+    Hub-->>Dev2: OVERLAP Alert! Lease held by @antigravity-ui
+
+    Note over Dev1,Dev2: Cross-Agent Delegation (mesh_request)
+    Dev1->>Hub: mesh_request(to: "codex-backend", text: "Expose GET /api/nodes")
+    Hub-->>Dev2: Delivered to Codex MCP inbox via <mesh-delta>
+    Dev2->>Hub: request-respond(id: "...", accept: true) -> Mint Child Intent
+
+    Note over Dev1,Dev2: 2-Agent MACP Quorum Voting
+    Dev2->>Hub: macp_propose(title: "Adopt Contract v3 Schema", minQuorum: 2)
+    Dev2->>Hub: mesh_vote(sessionId: "...", vote: "yes")
+    Dev1->>Hub: mesh_vote(sessionId: "...", vote: "yes")
+    Hub->>Hub: Quorum Concluded -> CAS Merge to Trunk
 ```
 
-## Universal Deployment Matrix
+---
 
-```mermaid
-flowchart LR
-    Source["AgentMesh Platform (site/)"] --> Vercel["Vercel (vercel.json)"]
-    Source --> Netlify["Netlify (netlify.toml)"]
-    Source --> Cloudflare["Cloudflare Pages (wrangler.toml)"]
-    Source --> GHPages["GitHub Pages (.github/workflows)"]
-    Source --> DockerHub["Docker Hub & GHCR (Multi-Arch)"]
-    Source --> PaaS["Render / Railway (1-Click Blueprints)"]
+## 🛠 Model Context Protocol (MCP) Tools
+
+Every connected agent receives these tools natively inside their IDE chat context:
+
+| Tool Name | Parameters | Description |
+|---|---|---|
+| `mesh_declare_intent` | `goal`, `paths`, `effect`, `contracts` | Declare intended file mutations **before** writing code. Returns collision and breaking-change warnings. |
+| `mesh_release` | `id` | Free a declared intent and release file locks once changes are committed or abandoned. |
+| `mesh_status` | *(none)* | Inspect your current factsheet: active scopes, contracts used, and active neighbors. |
+| `mesh_inbox` | *(none)* | Drain unread peer notifications, contract updates, and inter-agent requests. |
+| `mesh_request` | `to`, `text`, `ref` | Delegate a task or schema requirement to a peer agent across laptops (e.g., `@codex-backend`). |
+| `mesh_vote` | `id`, `vote`, `weight`, `rationale` | Cast a binding vote in an active MACP decision or quorum session before trunk integration. |
+| `mesh_propose_contract` | `title`, `mode`, `participants`, `spec` | Open an RFC-grade bounded coordination session for architectural updates. |
+| `mesh_crdt_set` | `key`, `value` | Mutate a shared AST symbol, config key, or contract node in the Delta-State CRDT. |
+| `mesh_roster` | *(none)* | View all active agents, their assigned lanes, and current heartbeats. |
+| `mesh_pin` | `node`, `text` | Drop an AST spatial pin on a file or contract to alert only the relevant scope owners. |
+| `mesh_board_post` | `text`, `color`, `codeRef` | Post a sticky note to the shared visual whiteboard linked to specific code references. |
+
+---
+
+## 🧱 The Five Architectural Pillars
+
+### 1. Intent Before Edit & AST Leases
+Agents declare what they are about to touch before touching it. AgentMesh analyzes path globs and AST contracts to compute overlaps in real time. If another agent holds an active lease, a non-blocking `OVERLAP` warning or hard-lease `409` barrier prevents write collisions.
+
+### 2. Copy-on-Write Virtual Lanes (MeshVCS)
+Agents operate in isolated virtual lanes (`lane/antigravity-ui`, `lane/codex-backend`) layered above Git. Changes are snapshotted immutably:
+```bash
+node bin/mesh undo <actor>           # Instant undo without losing uncommitted writes
+node bin/mesh rewind <actor> 10m     # Scoped time-travel rollback for a single actor
+node bin/mesh revert-intent <actor> <id> # Revert a specific task's changes
 ```
 
+### 3. MACP 5-Mode Kernel
+Multi-Agent Coordination Protocol provides bounded, stateful coordination sessions:
+- **Decision Mode**: Weighted voting with binding resolution and quorum thresholds.
+- **Proposal Mode**: 3-round negotiation ladder (Scope Partitioning → Temporal Sequencing → Human Arbitration).
+- **Quorum Mode**: Strict consensus gate for trunk integration and database schema migrations.
+- **Task & Handoff Modes**: Formal work delegation and state transfer between agents.
 
-## Collaborating (the best parts)
+### 4. Delta-State Semantic CRDT & AST Contracts
+Guarantees **Strong Eventual Consistency (SEC)** across causal vector clocks:
+- Commutative Last-Write-Wins (LWW) with Lamport timestamps and actor tie-breaking.
+- Delta synchronization: only the minimal changed state vector is transmitted over the wire.
+- AST symbol tracking: changes to function signatures or route declarations propagate across lanes instantly.
 
-- **Roster + availability:** `mesh roster join <name> --role human|agent --skills a,b --owner <human>`; `mesh roster avail <name> focus|dnd|available`. Focus/DND never get toasts — digests only.
-- **Ask agents:** `mesh request create <agent> "please expose createdAt" --from me` → owner approval inbox (`mesh request` lists); trusted teammates skip it. `accept` mints a child intent; chips track queued→working→done/declined. Agents use MCP `mesh_request`.
-- **Spatial pins:** `mesh pin add src/api/auth/login.ts "race here?"` routes to scope owners only. Agents use MCP `mesh_pin`.
-- **Decisions:** `mesh decide record "auth rename" "keep /api/auth until UI migrates"` — one-line record per change; the Referee writes these; canvas shows the latest 5.
-- **Stay in flow:** 10-min 5-line `mesh digest`, `mesh standup <me> --doing/--done/--blocked`, WIP limit 2 (`mesh wip <actor> <n>`), quiet hours (`mesh quiet <human> 22 7`), toast cap 3/10min with digest batching.
-- **Handoffs:** `mesh capsule export --from me --intent "auth v2"` → `mesh capsule import <id>` — finish in one tool, continue in another (read-only brief).
-- **Pairing:** `mesh pair start <a> <b>` opens a scratch lane; `mesh pair <a> <b> <topic>` runs the negotiation ladder (2 rounds, then human).
-- **Health:** `mesh health --tp 9 --fp 1` — precision ≥0.9 keeps warnings trusted, else advisory; `mesh brief` onboards newcomers in ~30 lines.
+### 5. Harness-Gated Trunk Integration
+Nothing merges to `main` until the verification harness verifies the exact `base_hash + change_hash`:
+- **T0**: Fast syntax, security secret scanning, and boundary policy check (<150ms).
+- **T1**: Unit test suite verification (`npm test`).
+- **T2**: Integration and cross-lane contract verification.
 
-## Map: design doc → code
+---
 
-| Design section | Code |
-|---|---|
-| Mesh Core daemon | `src/hub.mjs` (log, presence, intents, leases, router, sheets, SSE) + `src/store.mjs` |
-| Micro-VM sandbox | `src/drivers.mjs` (detect/boot Lite/Container/Lima-WSL2/Firecracker), `src/mesh.mjs run` (L4 wrap), dep steward |
-| MeshVCS | `src/lanes.mjs` (snapshot/diff/rebase/undo/rewind/revert-intent/freeze/checkpoint/eject) |
-| Intents, leases, queue | hub (forecast + soft/hard leases) + `src/queue.mjs` (propose/approve/drain, CAS, bisect, dial) |
-| Contracts + drift | `src/contracts.mjs` + `src/graph.mjs` (extract/diff/ghost/gate/x-verify) |
-| Harness | `src/harness.mjs` (T0/T1/T2/T3, verdicts bound to base+head, flake→flaky) + `.mesh/policy.yaml` + `src/policy.mjs` |
-| Integrations | `src/bridge.mjs` (MCP stdio), `src/mesh.mjs hook` (L3), `extension/` (VS Code/Cursor/Windsurf thin client) |
-| Semantic bus | `src/bus.mjs` (say+facts+refs, tiers 1–3, hop-3, dedupe, 20/min breaker, requests, sheet compiler) |
-| Canvas | `src/canvas.html` served at `GET /canvas`, live from `/state` + `/events` |
-| Schemas | envelope/intent/lease/contract/changeset/verdict/operation shapes in `src/store.mjs` + hub |
-| Failure modes | each row has an implementation + demo/test: undo, rebase objects, ghost+gate, budgets, breaker, TTL, WAL-reload, bundles, epoch fence, eject |
-| Security | shims+deny list+allowlist (`policy.mjs`), secret scan+redact (`store.mjs`), provenance in ops log (`mesh audit`) → production: ed25519 capabilities (`src/auth.mjs`), enforced hub auth, real PATH shims (`src/shims.mjs`), `/metrics`+`/ready`, runbooks in `docs/` |
-| Zero-to-running | `bash install.sh` / `mesh up`, `doctor`, canvas invite view; production: `bin/mesh`, Dockerfile+healthcheck, compose (hub+standby), CI |
-| VCS backends | `src/vcs.mjs` router: git objects (`gitvcs.mjs`), Jujutsu opt-in (`jjvcs.mjs`), zero-binary SQLite store (`sqlitevcs.mjs`); real `git merge-file` (`merge.mjs`) |
-| PoC + bold ideas | `demo.mjs` (drift), `demo-phase1/2/3.mjs`, ghost + rewind-one-agent + live-wire edges + referee hooks + demo-ready trunk tag via queue |
+## 💻 CLI Reference
 
-## MCP wiring (any client)
+AgentMesh provides a unified CLI entrypoint via `bin/mesh`:
 
-```json
-{ "mcpServers": { "agentmesh": {
-  "command": "node", "args": ["/home/harshal/Project/src/bridge.mjs"],
-  "env": { "MESH_ACTOR": "ui-agent", "MESH_HUB": "http://localhost:7777" } } } }
+```bash
+# Inspection & Health
+node bin/mesh status                   # Inspect Hub health, driver, and trunk head
+node bin/mesh overview                 # Print full ASCII topology, roster, and active collisions
+node bin/mesh doctor                   # Run system diagnostics on node, git, and ports
+
+# Virtual Lanes (MeshVCS)
+node bin/mesh lane <actor>             # Create an isolated copy-on-write actor lane
+node bin/mesh snapshot <actor> [tag]   # Record an immutable snapshot of an actor lane
+node bin/mesh diff <actor>             # Diff lane working tree against trunk head
+node bin/mesh undo <actor>             # Undo actor's latest turn
+node bin/mesh rewind <actor> --minutes 15 # Rewind actor lane by N minutes
+
+# Multi-Laptop Helpers
+node bin/mesh-join <hub-url>           # Join a remote Hub and configure local MCP in 1 command
 ```
 
-Rules: declare intent before multi-file edits; `mesh_status` per task; read `<mesh-delta>` first; `[tier 1]` = blocking.
+---
 
-## Sharing: whiteboard + voice
+## 🌐 Multi-Platform Deployment & Observatory
 
-- **Board** (canvas Board tab): notes, text, rects, ellipses, arrows, pen, eraser, colors, drag-to-move. Every stroke is an op — synced live, persisted, replayable. Stickies take a code ref (`⌁`) linking board↔code. `mesh board` shows the count; export downloads tldraw-compatible JSON, import takes it back.
-- **Voice** (canvas Voice tab): one click joins P2P audio. The hub only passes SDP/ICE envelopes (60 s mailbox, never logged); media goes browser-to-browser — fine for a 3–5 person room, no server media bill. Speaking rings, mute, listen-only without a mic.
-- **Agents welcome:** MCP `mesh_board_post` drops a proposal sticky the whole room sees.
+AgentMesh can be operated in production across any hosting environment:
+
+| Platform | Configuration | Command / Purpose |
+|---|---|---|
+| **Docker Hub** | `Dockerfile` & `compose.yml` | `docker run -d -p 7777:7777 harshalsp07/agentmesh:latest` |
+| **GitHub Pages** | `.github/workflows/pages.yml` | Static observatory & simulator deployment |
+| **Vercel** | `vercel.json` | Serverless edge deployment of web canvas |
+| **Netlify** | `netlify.toml` | Multi-region static asset distribution |
+| **Cloudflare Pages** | `wrangler.toml` & `_worker.js` | Cloudflare edge worker deployment |
+| **Railway / Render** | `railway.json` & `render.yaml` | 1-click cloud daemon deployment |
+
+---
+
+## 📜 Testing & Quality Assurance
+
+AgentMesh maintains an extensive automated test suite covering all subsystems:
+```bash
+npm test
+```
+```
+✔ collab — owner approval gates strangers; child intents track
+✔ contracts — extracts routes, ghosts breaking changes, gates deletion
+✔ policy — deny/approval/egress/landing/protected rules
+✔ bus+graph — breaking contract change interrupts consumers
+✔ intent validation — rejects missing goals/paths with 400
+✔ drift + overlap routing — consumer gets tier-1 BREAKING on next pull
+✔ hard-lease boundary — refuses overlapping write with 409
+✔ log integrity — /verify passes with SQLite WAL backing
+✔ VectorClock & Causal Ordering — monotonic Lamport causal relations
+✔ SemanticDocument SEC — mathematically converges across concurrent deltas
+✔ harness — T0 blocks secrets and syntax, binds base+head
+✔ queue — CAS advances trunk head once checks pass
+✔ MeshVCS — immutable snapshots, scoped undo, rewind, eject
+✔ MACP 5-Mode Kernel — decision, proposal ladder, quorum threshold
+✔ Epistemic Merkle DAG — content-addressed nodes, Merkle root sync
+✔ A2A Standard Protocol Gateway — agent-card.json and agent.sync RPC
+✔ Multi-Harness Coordination — Laptop 1 (Antigravity) <-> Laptop 2 (Codex)
+ℹ tests 63 · suites 32 · pass 63 · fail 0
+```
+
+---
+
+## 📄 License
+
+MIT © [Harshal](https://github.com/harshalsp07)

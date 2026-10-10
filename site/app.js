@@ -27,13 +27,13 @@
       xai: { key: localStorage.getItem('mesh_key_xai') || '', name: 'xAI (Grok)', defaultModel: 'grok-2-latest' },
     },
 
-    // Swarm Agent Roster
+    // Swarm Agent Roster (Multi-Harness)
     agents: [
-      { id: 'frontend-agent', name: 'Frontend Architect', role: 'UI & Conduits', provider: 'gemini', model: 'gemini-2.5-flash', lane: 'lane-fe-01', color: '#00f2fe', status: 'idle', task: 'Ready for coordination' },
-      { id: 'backend-agent', name: 'Core Engine Dev', role: 'API & Auth', provider: 'anthropic', model: 'claude-3-7-sonnet', lane: 'lane-be-02', color: '#f59e0b', status: 'idle', task: 'Monitoring auth scope' },
-      { id: 'schema-steward', name: 'Contract Steward', role: 'OpenAPI & AST', provider: 'openai', model: 'gpt-4o', lane: 'lane-schema-03', color: '#10b981', status: 'idle', task: 'Tracking AST contracts' },
-      { id: 'security-auditor', name: 'Security Guard', role: 'L4 Sandbox & Audit', provider: 'ollama', model: 'llama3.3', lane: 'lane-sec-04', color: '#8b5cf6', status: 'idle', task: 'Auditing rate limits' },
+      { id: 'antigravity-ui', name: 'Antigravity UI Lead', role: 'UI & Frontend Architecture', host: 'Laptop 1 (Antigravity IDE)', provider: 'Google Antigravity', model: 'IDE Agent', lane: 'lane/antigravity-ui', color: '#00f2fe', status: 'active', task: 'Observatory & UI components' },
+      { id: 'codex-backend', name: 'Codex Core Dev', role: 'Backend & Event Bus Engine', host: 'Laptop 2 (Codex / Cursor)', provider: 'OpenAI Codex', model: 'Cursor / CLI', lane: 'lane/codex-backend', color: '#f59e0b', status: 'active', task: 'API routes & AST contracts' },
+      { id: 'contract-auditor', name: 'Contract Steward', role: 'AST Invariants & Verification', host: 'LAN / Automated Test Harness', provider: 'AgentMesh AST', model: 'AST-L4', lane: 'lane/contracts', color: '#10b981', status: 'idle', task: 'Guarding breaking changes' },
     ],
+    requests: [],
 
     // Mesh Data (Synchronized from Hub or Local Engine)
     seq: 0,
@@ -129,51 +129,28 @@
     });
   });
 
-  // --- AI Provider Key Management ---
-  function loadProviderKeys() {
-    state.providers.gemini.key = localStorage.getItem('mesh_key_gemini') || '';
-    state.providers.anthropic.key = localStorage.getItem('mesh_key_anthropic') || '';
-    state.providers.openai.key = localStorage.getItem('mesh_key_openai') || '';
-    state.providers.ollama.endpoint = localStorage.getItem('mesh_endpoint_ollama') || 'http://localhost:11434';
-    state.providers.openrouter.key = localStorage.getItem('mesh_key_openrouter') || '';
-    state.providers.groq.key = localStorage.getItem('mesh_key_groq') || '';
-    state.providers.mistral.key = localStorage.getItem('mesh_key_mistral') || '';
-    state.providers.xai.key = localStorage.getItem('mesh_key_xai') || '';
-
-    if ($('key-gemini')) $('key-gemini').value = state.providers.gemini.key;
-    if ($('key-anthropic')) $('key-anthropic').value = state.providers.anthropic.key;
-    if ($('key-openai')) $('key-openai').value = state.providers.openai.key;
-    if ($('endpoint-ollama')) $('endpoint-ollama').value = state.providers.ollama.endpoint;
-    if ($('key-openrouter')) $('key-openrouter').value = state.providers.openrouter.key;
-    if ($('key-groq')) $('key-groq').value = state.providers.groq.key;
-    if ($('key-mistral')) $('key-mistral').value = state.providers.mistral.key;
-    if ($('key-xai')) $('key-xai').value = state.providers.xai.key;
-
-    updateProviderBadge();
+  // --- Settings Management ---
+  function loadSettings() {
+    state.hubUrl = localStorage.getItem('mesh_hub_url') || 'http://localhost:7777';
+    state.token = localStorage.getItem('mesh_token') || '';
+    if ($('setting-hub-url')) $('setting-hub-url').value = state.hubUrl;
+    if ($('setting-mesh-token')) $('setting-mesh-token').value = state.token;
+    if ($('host-ip-placeholder')) {
+      try {
+        const u = new URL(state.hubUrl);
+        $('host-ip-placeholder').textContent = u.hostname || '127.0.0.1';
+      } catch {}
+    }
   }
 
-  function saveProviderKeys() {
-    state.providers.gemini.key = ($('key-gemini')?.value || '').trim();
-    state.providers.anthropic.key = ($('key-anthropic')?.value || '').trim();
-    state.providers.openai.key = ($('key-openai')?.value || '').trim();
-    state.providers.ollama.endpoint = ($('endpoint-ollama')?.value || 'http://localhost:11434').trim();
-    state.providers.openrouter.key = ($('key-openrouter')?.value || '').trim();
-    state.providers.groq.key = ($('key-groq')?.value || '').trim();
-    state.providers.mistral.key = ($('key-mistral')?.value || '').trim();
-    state.providers.xai.key = ($('key-xai')?.value || '').trim();
-
-    localStorage.setItem('mesh_key_gemini', state.providers.gemini.key);
-    localStorage.setItem('mesh_key_anthropic', state.providers.anthropic.key);
-    localStorage.setItem('mesh_key_openai', state.providers.openai.key);
-    localStorage.setItem('mesh_endpoint_ollama', state.providers.ollama.endpoint);
-    localStorage.setItem('mesh_key_openrouter', state.providers.openrouter.key);
-    localStorage.setItem('mesh_key_groq', state.providers.groq.key);
-    localStorage.setItem('mesh_key_mistral', state.providers.mistral.key);
-    localStorage.setItem('mesh_key_xai', state.providers.xai.key);
-
-    updateProviderBadge();
+  function saveSettings() {
+    state.hubUrl = ($('setting-hub-url')?.value || 'http://localhost:7777').trim();
+    state.token = ($('setting-mesh-token')?.value || '').trim();
+    localStorage.setItem('mesh_hub_url', state.hubUrl);
+    localStorage.setItem('mesh_token', state.token);
     closeModal('settings-modal');
-    toast('AI Provider settings saved successfully.', 'success');
+    toast('Mesh Network settings saved.', 'success');
+    connectHub(state.hubUrl, state.token);
   }
 
   function updateProviderBadge() {
@@ -333,6 +310,7 @@
         state.trunk = d.trunk || state.trunk;
         state.intents = d.intents || [];
         state.collisions = d.collisions || [];
+        state.requests = d.requests || [];
         
         // Sync CRDT
         const crdtRes = await fetch(`${state.hubUrl}/api/crdt`).catch(() => null);
@@ -370,6 +348,7 @@
     renderTopology();
     renderIntentsTable();
     renderAgentRoster();
+    renderRequests();
     renderCrdtTable();
     renderMacpSessions();
     renderDagTimeline();
@@ -599,170 +578,74 @@
     if (macpInitSelect) macpInitSelect.innerHTML = optionsHtml;
   }
 
-  // --- Real AI Swarm Mission Dispatcher ---
-  async function dispatchMission() {
-    const promptInput = $('mission-prompt-input');
-    const agentSelect = $('mission-agent-select');
-    const autoApply = $('chk-auto-mesh')?.checked ?? true;
-    const prompt = (promptInput?.value || '').trim();
-    const targetAgentId = agentSelect?.value || 'all';
+  // --- Inter-Agent Task Delegation (mesh_request) ---
+  async function sendAgentRequest() {
+    const fromActor = $('req-from-select')?.value || 'antigravity-ui';
+    const toActor = $('req-to-select')?.value || 'codex-backend';
+    const text = ($('req-text-input')?.value || '').trim();
 
-    if (!prompt) {
-      toast('Please enter an engineering mission prompt.', 'warning');
+    if (!text) {
+      toast('Please enter a request or contract task.', 'warning');
       return;
     }
 
-    const consoleEl = $('mission-console');
-    const statusChip = $('mission-status-chip');
-    const btn = $('btn-dispatch-mission');
-
-    btn.disabled = true;
-    btn.innerHTML = `<span class="streaming-cursor"></span> Dispatching to AI Model...`;
-    if (statusChip) statusChip.textContent = 'Inference in progress...';
-    if (consoleEl) consoleEl.textContent = `[Mission Initialized]: ${prompt}\nTarget: @${targetAgentId}\nConnecting to AI inference provider...\n\n`;
-
-    const targetAgents = targetAgentId === 'all'
-      ? state.agents
-      : state.agents.filter((a) => a.id === targetAgentId);
-
-    const startTime = Date.now();
-
-    for (const ag of targetAgents) {
-      ag.status = 'reasoning';
-      ag.task = prompt.slice(0, 40) + '...';
-      renderAgentRoster();
-
-      const provKey = state.providers[ag.provider]?.key || '';
-      const provEndpoint = state.providers[ag.provider]?.endpoint || '';
-
-      const messages = [
-        {
-          role: 'system',
-          content: `You are @${ag.id} (${ag.name}), a senior engineer running inside AgentMesh.
-Your assigned AI engine is ${ag.provider} with model ${ag.model}.
-Your role is: ${ag.role}.
-You work in copy-on-write lane: ${ag.lane}.
-Current mesh state: seq=#${state.seq}, trunk=${state.trunk}.
-Always structure your output with:
-1. Analysis & Proposed Solution
-2. Declared Intent:
-   GOAL: <goal string>
-   PATHS: <target paths>
-   EFFECT: <none|additive|breaking>
-3. CRDT Register Updates (if any symbol/contract is modified):
-   SYMBOL: <key> = <val>
-4. Summary for the team.`,
-        },
-        { role: 'user', content: prompt }
-      ];
-
-      let responseText = '';
-
-      // Execution attempt 1: via Hub if connected
-      if (state.isHubConnected) {
-        try {
-          const res = await fetch(`${state.hubUrl}/api/ai/chat`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              provider: ag.provider,
-              model: ag.model,
-              apiKey: provKey,
-              endpoint: provEndpoint,
-              messages,
-              actor: ag.id,
-            }),
-          });
-          const data = await res.json();
-          if (data.ok) {
-            responseText = data.content;
-          } else {
-            responseText = `[Provider Warning]: ${data.error}\n(Simulating agent fallback response)`;
-          }
-        } catch {
-          responseText = '';
-        }
-      }
-
-      // Execution attempt 2: Client-side local execution if Hub failed or offline
-      if (!responseText) {
-        if (ag.provider === 'ollama') {
-          try {
-            const res = await fetch(`${provEndpoint.replace(/\/$/, '')}/api/chat`, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
-                model: ag.model,
-                messages,
-                stream: false,
-              }),
-            });
-            if (res.ok) {
-              const d = await res.json();
-              responseText = d.message?.content || '';
-            }
-          } catch {}
-        } else if (ag.provider === 'gemini' && provKey) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${ag.model}:generateContent?key=${encodeURIComponent(provKey)}`;
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: `${messages[0].content}\n\nTask: ${prompt}` }] }]
-              }),
-            });
-            if (res.ok) {
-              const d = await res.json();
-              responseText = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            }
-          } catch {}
-        }
-      }
-
-      // If no API key was supplied, provide authentic autonomous mesh synthesis
-      if (!responseText) {
-        responseText = `### [@${ag.id} / ${ag.name} (${ag.provider} • ${ag.model})]:\n` +
-          `I have reviewed the task: "${prompt}".\n\n` +
-          `**Analysis:**\n` +
-          `- Operating in copy-on-write lane \`${ag.lane}\`.\n` +
-          `- Verified base hash against trunk \`${state.trunk}\`.\n\n` +
-          `**Declared Intent:**\n` +
-          `GOAL: ${prompt}\n` +
-          `PATHS: src/${ag.id.replace('-agent', '')}/**, contracts/api.json\n` +
-          `EFFECT: additive\n\n` +
-          `**CRDT Register Updates:**\n` +
-          `SYMBOL: src/${ag.id.replace('-agent', '')}/handler.ts:status = active_v${state.seq + 1}\n\n` +
-          `**Team Notice:** Verification harness passed T0 checks. Ready to merge once review concludes.`;
-      }
-
-      const elapsed = Date.now() - startTime;
-      consoleEl.textContent += `--- [@${ag.id} Execution via ${ag.provider}/${ag.model} (${elapsed}ms)] ---\n${responseText}\n\n`;
-
-      // Auto-Apply to Mesh
-      if (autoApply) {
-        // 1. Declare intent
-        const intentGoal = prompt.slice(0, 60);
-        const intentPaths = [`src/${ag.id.replace('-agent', '')}/**`];
-        declareIntent(ag.id, intentGoal, intentPaths, 'additive');
-
-        // 2. Mutate CRDT symbol
-        const symbolKey = `src/${ag.id.replace('-agent', '')}/spec.ts:revision`;
-        mutateCrdtSymbol(symbolKey, `rev-${Date.now().toString(36)}`, ag.id);
-
-        // 3. Append DAG node
-        appendDagNode(ag.id, 'agent_mission', { prompt, agent: ag.id, provider: ag.provider });
-      }
-
-      ag.status = 'idle';
-      ag.task = 'Task completed';
-      renderAgentRoster();
+    if (fromActor === toActor) {
+      toast('Caller and target agent must be different.', 'warning');
+      return;
     }
 
-    btn.disabled = false;
-    btn.innerHTML = `<span>⚡</span> Run Mission with Selected Model`;
-    if (statusChip) statusChip.textContent = `Completed in ${Date.now() - startTime}ms`;
-    toast('Swarm mission executed and mesh state synchronized.', 'success');
+    const btn = $('btn-send-agent-request');
+    if (btn) btn.disabled = true;
+
+    try {
+      if (state.isHubConnected) {
+        const res = await fetch(`${state.hubUrl}/api/request`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ actor: fromActor, to: toActor, text, ref: `web-${Date.now().toString(36)}` }),
+        });
+        const data = await res.json();
+        if (data.ok || data.status) {
+          toast(`Task dispatched to @${toActor} (Status: ${data.status || 'queued'})!`, 'success');
+          if ($('req-text-input')) $('req-text-input').value = '';
+          await syncHubOverview();
+        } else {
+          toast(`Request failed: ${data.error || 'Unknown error'}`, 'error');
+        }
+      } else {
+        state.requests.unshift({
+          id: `req-${Date.now().toString(36)}`,
+          actor: fromActor,
+          to: toActor,
+          text,
+          status: 'queued',
+        });
+        renderRequests();
+        toast(`Task queued for @${toActor}. Connect Hub for live delivery.`, 'info');
+        if ($('req-text-input')) $('req-text-input').value = '';
+      }
+    } catch (e) {
+      toast(`Failed to send request: ${e.message}`, 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function renderRequests() {
+    const tbody = $('requests-tbody');
+    if (!tbody) return;
+    if (!state.requests || !state.requests.length) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = state.requests.map((r) => `
+      <tr>
+        <td style="color:#00f2fe;font-weight:600;">@${r.actor}</td>
+        <td style="color:#f59e0b;font-weight:600;">@${r.to}</td>
+        <td style="font-size:0.75rem;">${r.text}</td>
+        <td><span class="provider-tag ${r.status === 'done' ? 'provider-openai' : r.status === 'working' ? 'provider-anthropic' : 'provider-gemini'}">${r.status || 'queued'}</span></td>
+      </tr>
+    `).join('');
   }
 
   // --- Intent Declaration & Management ---
@@ -1468,17 +1351,29 @@ Always structure your output with:
       toast(`Added agent @${id} powered by ${provider}/${model}`, 'success');
     });
 
-    // Swarm Dispatch
-    $('btn-dispatch-mission')?.addEventListener('click', dispatchMission);
-    document.querySelectorAll('.quick-prompt-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const inp = $('mission-prompt-input');
-        if (inp) {
-          inp.value = btn.dataset.preset;
-          inp.focus();
-        }
-      });
+    // Inter-Agent Request Delegation
+    $('btn-send-agent-request')?.addEventListener('click', sendAgentRequest);
+    $('preset-req-1')?.addEventListener('click', () => {
+      if ($('req-text-input')) $('req-text-input').value = 'Please expose GET /api/v1/topology in src/hub.mjs returning active peers array';
     });
+    $('preset-req-2')?.addEventListener('click', () => {
+      if ($('req-text-input')) $('req-text-input').value = 'Please review AST contract changes for OpenAPI v3 schema in contracts/api.json';
+    });
+    $('btn-copy-join-cmd')?.addEventListener('click', () => {
+      const code = $('join-cmd-snippet')?.textContent || '';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => toast('Join command copied to clipboard!', 'success')).catch(() => {});
+      } else {
+        toast(`Command: ${code}`, 'info');
+      }
+    });
+
+    // Multi-Laptop Settings Modal
+    $('btn-open-settings')?.addEventListener('click', () => openModal('settings-modal'));
+    $('btn-configure-providers')?.addEventListener('click', () => openModal('settings-modal'));
+    $('btn-close-settings')?.addEventListener('click', () => closeModal('settings-modal'));
+    $('btn-save-settings')?.addEventListener('click', saveSettings);
+    $('btn-quick-mesh-actors')?.addEventListener('click', () => $('tab-btn-swarm')?.click());
 
     // CRDT Mutate Inline
     $('btn-quick-commit-crdt')?.addEventListener('click', () => {
@@ -1528,11 +1423,12 @@ Always structure your output with:
   window.AgentMeshApp = {
     releaseIntent,
     castMacpVote,
+    sendAgentRequest,
     quickPromptAgent: (agentId) => {
-      const select = $('mission-agent-select');
+      const select = $('req-to-select');
       if (select) select.value = agentId;
       $('tab-btn-swarm')?.click();
-      $('mission-prompt-input')?.focus();
+      $('req-text-input')?.focus();
     },
     editCrdtSymbol: (key, val) => {
       const newVal = prompt(`Update value for ${key}:`, val);
@@ -1548,7 +1444,7 @@ Always structure your output with:
 
   // --- Boot Sequence ---
   window.addEventListener('DOMContentLoaded', async () => {
-    loadProviderKeys();
+    loadSettings();
     setupTabs();
     initEvents();
     initBoard();

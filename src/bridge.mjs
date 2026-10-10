@@ -67,6 +67,41 @@ const TOOLS = {
       return r.ok ? `pin ${r.id} on ${a.node} recorded and routed to scope owners.` : `pin failed: ${r.error}`;
     },
   },
+  mesh_roster: {
+    description: 'List all active agents, their declared scopes, lanes, and active leases across machines.',
+    inputSchema: { type: 'object', properties: {} },
+    run: async () => {
+      const r = await fetch(`${HUB}/api/overview`, { headers: { ...authH() } }).then((x) => x.json()).catch((e) => ({ ok: false, error: e.message }));
+      if (!r.ok) return `failed to fetch mesh roster: ${r.error}`;
+      const agents = r.presence ? Object.entries(r.presence).map(([id, p]) => `@${id} (focus: ${p.focus || '-'}, verb: ${p.verb || 'active'})`).join(', ') : 'none';
+      const intents = (r.intents || []).map((it) => `[${it.id}] @${it.actor} -> ${it.goal} (${it.paths.join(', ')})`).join('\n') || 'none';
+      return `CONNECTED PEERS: ${agents}\n\nACTIVE INTENTS & LEASES:\n${intents}`;
+    },
+  },
+  mesh_vote: {
+    description: 'Cast a vote in an active MACP decision or quorum session (e.g. approving a contract or trunk merge).',
+    inputSchema: { type: 'object', required: ['id', 'vote'], properties: { id: str, vote: str, weight: { type: 'number' }, rationale: str } },
+    run: async (a) => {
+      const r = await fetch(`${HUB}/api/macp`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ action: 'vote', id: a.id, actor: ACTOR, vote: a.vote, weight: a.weight || 1, rationale: a.rationale || '' }) }).then((x) => x.json()).catch((e) => ({ ok: false, error: e.message }));
+      return r.ok ? `MACP vote '${a.vote}' recorded for session ${a.id} (status: ${r.session?.status}, outcome: ${JSON.stringify(r.session?.outcome || null)})` : `MACP vote failed: ${r.error}`;
+    },
+  },
+  mesh_propose_contract: {
+    description: 'Propose a contract change or create an MACP negotiation session with peer agents across laptops.',
+    inputSchema: { type: 'object', required: ['title'], properties: { title: str, mode: { enum: ['decision', 'proposal', 'quorum'] }, participants: strs, spec: str } },
+    run: async (a) => {
+      const r = await fetch(`${HUB}/api/macp`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ action: 'create', initiator: ACTOR, mode: a.mode || 'proposal', title: a.title, participants: a.participants || [ACTOR], data: { spec: a.spec || '' } }) }).then((x) => x.json()).catch((e) => ({ ok: false, error: e.message }));
+      return r.ok ? `MACP session created: ${r.session?.id} (${r.session?.mode}) - "${r.session?.title}". Awaiting peer input.` : `failed to propose contract: ${r.error}`;
+    },
+  },
+  mesh_crdt_set: {
+    description: 'Update a shared AST symbol, config key, or contract node in the Delta-State Semantic CRDT.',
+    inputSchema: { type: 'object', required: ['key', 'value'], properties: { key: str, value: str } },
+    run: async (a) => {
+      const r = await fetch(`${HUB}/api/crdt`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ action: 'set', actor: ACTOR, key: a.key, value: a.value }) }).then((x) => x.json()).catch((e) => ({ ok: false, error: e.message }));
+      return r.ok ? `CRDT symbol ${a.key} updated to "${a.value}" (Lamport: ${r.op?.lamport})` : `CRDT update failed: ${r.error}`;
+    },
+  },
 };
 
 const send = (m) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');

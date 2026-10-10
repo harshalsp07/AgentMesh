@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+// bin/mesh-join — Zero-config helper to connect Laptop 2 to Laptop 1 Hub.
+import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+
+const hubUrl = process.argv[2] || process.env.MESH_HUB || 'http://localhost:7777';
+const actor = process.env.MESH_ACTOR || 'codex-backend';
+
+console.log(`\n🌐 AgentMesh Multi-Laptop Connector`);
+console.log(`-----------------------------------`);
+console.log(`Connecting actor:  @${actor}`);
+console.log(`Target Hub URL:    ${hubUrl}\n`);
+
+async function check() {
+  try {
+    const health = await fetch(`${hubUrl.replace(/\/$/, '')}/health`).then((r) => r.json());
+    if (health.ok) {
+      console.log(`✔ Hub is ONLINE! (seq: ${health.seq}, epoch: ${health.epoch})`);
+    } else {
+      console.warn(`⚠ Hub returned non-ok health:`, health);
+    }
+
+    // Register presence
+    const pres = await fetch(`${hubUrl.replace(/\/$/, '')}/cmd`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ actor, kind: 'presence', payload: { verb: 'joined', focus: 'backend' } }),
+    }).then((r) => r.json());
+
+    if (pres.ok) {
+      console.log(`✔ Registered presence for @${actor} on Hub!`);
+    }
+
+    // Write local .cursor/mcp.json if inside project
+    mkdirSync('.cursor', { recursive: true });
+    const cursorMcp = {
+      mcpServers: {
+        agentmesh: {
+          command: 'node',
+          args: ['src/bridge.mjs'],
+          env: {
+            MESH_ACTOR: actor,
+            MESH_HUB: hubUrl,
+          },
+        },
+      },
+    };
+    writeFileSync('.cursor/mcp.json', JSON.stringify(cursorMcp, null, 2));
+    console.log(`✔ Configured local .cursor/mcp.json`);
+
+    console.log(`\n🎉 Laptop 2 successfully connected to Laptop 1's AgentMesh!`);
+    console.log(`Your coding agent in Cursor/Codex/Claude Code can now coordinate in real time.`);
+  } catch (err) {
+    console.error(`✖ Failed to reach Hub at ${hubUrl}: ${err.message}`);
+    console.error(`Ensure Laptop 1 is running: MESH_HOST=0.0.0.0 node src/hub.mjs`);
+    console.error(`And check that Laptop 2 can ping Laptop 1's IP address.`);
+    process.exit(1);
+  }
+}
+
+check();

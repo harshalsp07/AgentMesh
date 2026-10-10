@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agentmesh": {
+      "command": "node",
+      "args": ["src/bridge.mjs"],
+      "env": {
+        "MESH_ACTOR": "antigravity-ui",
+        "MESH_HUB": "http://localhost:7777"
+      }
+    }
+  }
+}

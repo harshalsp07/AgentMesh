@@ -36,15 +36,15 @@
       <button class="status-pill standalone" id="hub-status-badge" title="Click to configure hub connection">
         <span class="status-dot"></span> <span id="hub-status-text">Hub: Connecting...</span>
       </button>
-      <button class="status-pill providers-badge" id="btn-quick-providers" title="Configure AI Provider Keys">
-        ⚡ <span id="active-providers-count">AI Providers Configured</span>
+      <button class="status-pill providers-badge" id="btn-quick-mesh-actors" title="Multi-Harness Swarm Status">
+        ⚡ <span id="active-mesh-actors-count">Multi-Harness Mesh Active</span>
       </button>
     </div>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs" id="navigation-tabs" aria-label="Main Navigation">
       <button data-tab="topo" class="active" id="tab-btn-topo">1. Topology &amp; Intents</button>
-      <button data-tab="swarm" id="tab-btn-swarm">2. Swarm &amp; AI Dispatch</button>
+      <button data-tab="swarm" id="tab-btn-swarm">2. Multi-Harness Swarm &amp; Roster</button>
       <button data-tab="crdt" id="tab-btn-crdt">3. Semantic CRDT</button>
       <button data-tab="macp" id="tab-btn-macp">4. MACP Kernel</button>
       <button data-tab="dag" id="tab-btn-dag">5. Merkle DAG</button>
@@ -137,71 +137,96 @@
       </div>
     </section>
 
-    <!-- Tab 2: Universal AI Swarm & Mission Dispatcher -->
+    <!-- Tab 2: Multi-Harness Swarm & Roster Control Plane -->
     <section class="view-panel" id="view-swarm" aria-labelledby="heading-swarm">
       <div class="card">
         <div class="card-header">
-          <h2 id="heading-swarm">Universal Multi-Provider AI Swarm</h2>
+          <h2 id="heading-swarm">Multi-Harness Swarm Roster</h2>
           <div style="display:flex;gap:8px;">
-            <button class="btn-ghost" id="btn-add-agent">+ Add Custom Agent</button>
-            <button class="btn-ghost" id="btn-configure-providers">⚙ Provider API Keys</button>
+            <button class="btn-ghost" id="btn-add-agent">+ Register Agent</button>
+            <button class="btn-ghost" id="btn-configure-providers">⚙ Multi-Laptop Settings</button>
           </div>
         </div>
         <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">
-          Coordinate autonomous agents across Google Antigravity/Gemini, OpenAI, Anthropic Claude, Ollama (Local), DeepSeek, and OpenRouter in isolated copy-on-write sandboxes.
+          Live status of independent AI coding agents collaborating across workstations: Google Antigravity on Laptop 1 (UI) and OpenAI Codex / Cursor / Claude Code on Laptop 2 (Backend).
         </p>
 
         <!-- Swarm Agent Roster Grid -->
         <div class="grid-4" id="agent-cards-container"></div>
       </div>
 
-      <!-- Real AI Mission Dispatcher -->
-      <div class="card" style="margin-top:18px;">
-        <div class="card-header">
-          <h2>Autonomous Swarm Mission Dispatcher</h2>
-          <span style="font-size:0.75rem;color:var(--cyan-soft);">Live Model Inference &bull; Real Tool Execution</span>
+      <!-- Inter-Agent Delegation & Task Requests -->
+      <div class="grid-2" style="margin-top:18px;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Inter-Agent Task Delegation (`mesh_request`)</h2>
+            <span style="font-size:0.75rem;color:var(--cyan-soft);">Cross-Harness Messaging</span>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-muted);">
+            Send structured tasks or contract requests directly between Laptop 1 (`antigravity-ui`) and Laptop 2 (`codex-backend`). Delivered immediately to the target agent's MCP inbox.
+          </p>
+
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="form-group" style="margin:0;">
+                <label for="req-from-select" style="font-size:0.75rem;color:var(--text-dim);">From (Caller Agent)</label>
+                <select id="req-from-select" style="width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;">
+                  <option value="antigravity-ui">@antigravity-ui (Laptop 1: UI)</option>
+                  <option value="codex-backend">@codex-backend (Laptop 2: Backend)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label for="req-to-select" style="font-size:0.75rem;color:var(--text-dim);">To (Target Agent)</label>
+                <select id="req-to-select" style="width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;">
+                  <option value="codex-backend">@codex-backend (Laptop 2: Backend)</option>
+                  <option value="antigravity-ui">@antigravity-ui (Laptop 1: UI)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin:0;">
+              <label for="req-text-input" style="font-size:0.75rem;color:var(--text-dim);">Task / Contract Request Text</label>
+              <textarea id="req-text-input" class="mission-textarea" style="min-height:75px;" placeholder="e.g. Expose GET /api/mesh/topology in src/hub.mjs returning active peers array"></textarea>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="quick-prompts" style="margin:0;">
+                <button class="quick-prompt-btn" id="preset-req-1">Request API Endpoint</button>
+                <button class="quick-prompt-btn" id="preset-req-2">Request Contract Review</button>
+              </div>
+              <button class="btn-primary" id="btn-send-agent-request">Send Task to Agent</button>
+            </div>
+          </div>
         </div>
-        
-        <div class="mission-stage">
-          <div class="mission-input-row">
-            <div style="display:flex;flex-direction:column;gap:6px;min-width:200px;">
-              <label for="mission-agent-select" style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Target Agent</label>
-              <select id="mission-agent-select" class="form-group" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:var(--text-main);">
-                <!-- Populated dynamically -->
-              </select>
-            </div>
-            
-            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
-              <label for="mission-prompt-input" style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Engineering Mission Prompt</label>
-              <textarea id="mission-prompt-input" class="mission-textarea" placeholder="Describe the task (e.g. 'Draft an OpenAPI auth specification with Ed25519 tokens and declare the scope intent')"></textarea>
-            </div>
-          </div>
 
-          <!-- Quick Mission Presets -->
-          <div class="quick-prompts">
-            <span style="font-size:0.72rem;color:var(--text-dim);font-weight:600;">Presets:</span>
-            <button class="quick-prompt-btn" data-preset="Declare intent for src/auth/jwt.ts refactor and review token TTL policy">Declare Auth Scope</button>
-            <button class="quick-prompt-btn" data-preset="Propose breaking contract update for OpenAPI v2 to v3 with MACP consensus">MACP OpenAPI Proposal</button>
-            <button class="quick-prompt-btn" data-preset="Mutate CRDT AST symbol 'contracts/rate-limit.json:burst' to 1500 req/sec">CRDT Rate-Limit Delta</button>
-            <button class="quick-prompt-btn" data-preset="Perform static security audit on copy-on-write sandbox boundaries">Audit L4 Sandboxes</button>
+        <!-- Connect Laptop 2 Quick Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Connect Laptop 2 in 1 Command</h2>
+            <span style="font-size:0.75rem;color:var(--emerald-soft);">Zero-Config Join</span>
           </div>
-
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:4px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-muted);cursor:pointer;">
-              <input type="checkbox" id="chk-auto-mesh" checked> Auto-apply actions to Mesh (declare intents, update CRDT, append DAG)
-            </label>
-            <button class="btn-primary" id="btn-dispatch-mission">
-              <span id="btn-dispatch-icon">⚡</span> Run Mission with Selected Model
-            </button>
+          <p style="font-size:0.82rem;color:var(--text-muted);">
+            Run this command on Laptop 2 to instantly join the mesh and configure Cursor, Codex, or Claude Code:
+          </p>
+          <div style="background:rgba(0,0,0,0.5);border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:12px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;">
+            <code id="join-cmd-snippet" style="font-family:var(--font-mono);color:var(--cyan-core);font-size:0.85rem;">./bin/mesh-join http://<span id="host-ip-placeholder">127.0.0.1</span>:7777</code>
+            <button class="btn-ghost" id="btn-copy-join-cmd" style="padding:4px 10px;font-size:0.75rem;">Copy</button>
           </div>
-
-          <!-- Live Model Output Console -->
-          <div style="margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:0.74rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;">Execution Output &amp; Mesh Actions</span>
-              <span id="mission-status-chip" style="font-size:0.72rem;color:var(--text-dim);font-family:var(--font-mono);"></span>
-            </div>
-            <pre class="mission-console" id="mission-console"></pre>
+          <h4 style="font-size:0.8rem;color:var(--text-dim);margin-top:10px;text-transform:uppercase;">Active Requests &amp; Approval Chips</h4>
+          <div style="overflow-x:auto;max-height:160px;margin-top:6px;">
+            <table class="data-table" id="requests-table">
+              <thead>
+                <tr>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Task</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="requests-tbody">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -405,103 +430,44 @@ Connecting to /events stream...
 
   <!-- Modals -->
 
-  <!-- Modal 1: Settings & AI Providers -->
+  <!-- Modal 1: Multi-Laptop Network & MCP Settings -->
   <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-card">
-      <h3 id="settings-title">AI Provider &amp; Model Credentials</h3>
-      <p>Configure API keys for your preferred LLM providers. Keys are stored locally in your browser and used to power autonomous agents.</p>
+      <h3 id="settings-title">Multi-Laptop Network &amp; MCP Bridge Settings</h3>
+      <p>Configure cross-machine connection parameters so Laptop 1 (Antigravity) and Laptop 2 (Codex / Cursor) coordinate over LAN or VPN.</p>
       
-      <!-- Gemini / Antigravity -->
+      <!-- Hub Host URL -->
       <div class="provider-config-box">
         <div class="provider-config-header">
-          <strong style="color:var(--cyan-soft);">Google Antigravity &amp; Gemini</strong>
-          <button class="btn-ghost" id="btn-test-gemini" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+          <strong style="color:var(--cyan-soft);">AgentMesh Hub Daemon URL</strong>
         </div>
         <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-gemini" placeholder="Enter GEMINI_API_KEY (AIzaSy...)">
+          <input type="text" id="setting-hub-url" placeholder="http://127.0.0.1:7777" value="http://127.0.0.1:7777">
+        </div>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 0 0;">Run <code>MESH_HOST=0.0.0.0 node src/hub.mjs</code> on Laptop 1 for LAN access.</p>
+      </div>
+
+      <!-- Bearer Token Auth -->
+      <div class="provider-config-box">
+        <div class="provider-config-header">
+          <strong style="color:var(--amber-soft);">Capability Bearer Token (Optional)</strong>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <input type="password" id="setting-mesh-token" placeholder="Leave empty for open local development">
         </div>
       </div>
 
-      <!-- Anthropic Claude -->
+      <!-- Quick Connect Snippets -->
       <div class="provider-config-box">
         <div class="provider-config-header">
-          <strong style="color:var(--amber-soft);">Anthropic Claude</strong>
-          <button class="btn-ghost" id="btn-test-anthropic" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
+          <strong style="color:var(--emerald-soft);">Laptop 2 Join Command</strong>
         </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-anthropic" placeholder="Enter ANTHROPIC_API_KEY (sk-ant-...)">
-        </div>
-      </div>
-
-      <!-- OpenAI -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:var(--emerald-soft);">OpenAI (GPT-4o, o1, o3)</strong>
-          <button class="btn-ghost" id="btn-test-openai" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-openai" placeholder="Enter OPENAI_API_KEY (sk-...)">
-        </div>
-      </div>
-
-      <!-- Ollama Local -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:var(--purple-soft);">Ollama (Local / Zero-Cloud)</strong>
-          <button class="btn-ghost" id="btn-test-ollama" style="padding:2px 8px;font-size:0.72rem;">Check Endpoint</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="text" id="endpoint-ollama" placeholder="http://localhost:11434" value="http://localhost:11434">
-        </div>
-      </div>
-
-      <!-- OpenRouter & DeepSeek -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:#00f2fe;">OpenRouter / DeepSeek</strong>
-          <button class="btn-ghost" id="btn-test-openrouter" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-openrouter" placeholder="Enter OPENROUTER_API_KEY or DEEPSEEK_API_KEY">
-        </div>
-      </div>
-
-      <!-- Groq Cloud -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:#f59e0b;">Groq Cloud (Ultra-Fast LPU)</strong>
-          <button class="btn-ghost" id="btn-test-groq" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-groq" placeholder="Enter GROQ_API_KEY (gsk_...)">
-        </div>
-      </div>
-
-      <!-- Mistral AI -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:#38bdf8;">Mistral AI (Codestral &amp; Large)</strong>
-          <button class="btn-ghost" id="btn-test-mistral" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-mistral" placeholder="Enter MISTRAL_API_KEY">
-        </div>
-      </div>
-
-      <!-- xAI (Grok) -->
-      <div class="provider-config-box">
-        <div class="provider-config-header">
-          <strong style="color:#e2e8f0;">xAI (Grok)</strong>
-          <button class="btn-ghost" id="btn-test-xai" style="padding:2px 8px;font-size:0.72rem;">Test Ping</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <input type="password" id="key-xai" placeholder="Enter XAI_API_KEY">
-        </div>
+        <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan-core);display:block;padding:6px;background:rgba(0,0,0,0.4);border-radius:4px;">./bin/mesh-join http://&lt;LAPTOP_1_IP&gt;:7777</code>
       </div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
         <button class="btn-ghost" id="btn-close-settings">Close</button>
-        <button class="btn-primary" id="btn-save-settings">Save &amp; Apply</button>
+        <button class="btn-primary" id="btn-save-settings">Save Settings</button>
       </div>
     </div>
   </div>

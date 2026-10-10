@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agentmesh": {
+      "command": "node",
+      "args": ["/absolute/path/to/AgentMesh/src/bridge.mjs"],
+      "env": {
+        "MESH_ACTOR": "codex-backend",
+        "MESH_HUB": "http://192.168.1.50:7777"
+      }
+    }
+  }
+}

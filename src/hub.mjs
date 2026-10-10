@@ -23,7 +23,6 @@ import { MACPKernel } from './macp.mjs';
 import { MerkleDAG } from './dag.mjs';
 import { P2PSwarmCoordinator } from './p2p.mjs';
 import { generateAgentCard, handleA2ARpc } from './a2a.mjs';
-import { listProviders, pingProvider, executeChatCompletion } from './ai.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 export const PORT = +process.env.MESH_PORT || 7777;
@@ -610,22 +609,6 @@ export function createServer() {
             if (p.action === 'signal' && p.from && p.to && p.type) return json(p2pSwarm.sendSignal(p.from, p.to, p.type, p.data));
             return json({ ok: false, error: 'action (join|leave|signal) required' }, 400);
           }
-        }
-        // ---- Universal Multi-Provider AI Coordination Gateway ----
-        if (api === 'ai-providers' && req.method === 'GET') {
-          return json({ ok: true, providers: listProviders() });
-        }
-        if (api === 'ai-ping' && req.method === 'POST') {
-          const p = await readBody(req, res);
-          if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
-          const r = await pingProvider(p.provider, p);
-          return json(r);
-        }
-        if (api === 'ai-chat' && req.method === 'POST') {
-          const p = await readBody(req, res);
-          if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
-          const r = await executeChatCompletion(p);
-          return json(r);
         }
         return json({ ok: false, error: 'unknown api' }, 404);
       }
