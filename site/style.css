@@ -759,6 +759,20 @@ table tr:hover td {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+}
+
+/* tldraw embed (lazy, ?board=tldraw): native chrome, single status line */
+#tldraw-root {
+  display: none;
+  touch-action: none;
+}
+#tldraw-root:focus-visible, .board-toolbar button:focus-visible {
+  outline: 2px solid var(--cyan-core);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-stage * { animation: none !important; transition: none !important; }
 }
 
 /* Voice & Audio VU Meter */

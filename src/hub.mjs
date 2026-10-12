@@ -330,7 +330,7 @@ export function createServer() {
         } catch { res.writeHead(404).end(); }
         return;
       }
-      if (['style.css', 'app.js', 'manifest.webmanifest', 'sw.js'].includes(route0)) {
+      if (['style.css', 'app.js', 'board-tldraw.js', 'manifest.webmanifest', 'sw.js'].includes(route0)) {
         try {
           const f = join(HERE, '..', 'site', route0);
           const ctype = route0.endsWith('.css') ? 'text/css' : route0.endsWith('.js') ? 'application/javascript' : 'application/manifest+json';
@@ -491,6 +491,17 @@ export function createServer() {
           const r = importTldraw(DIR, actor, doc);
           emit(actor, 'board.op', { op: 'import', added: r.added });
           return json(r);
+        }
+        // ---- liveblocks-auth stub: cloud presence opt-in, hub ops are default ----
+        // Client calls this only in ?board=tldraw cloud mode. Empty key =
+        // { ok:false, fallback:"hub" } so the board keeps working on LAN.
+        if (api === 'liveblocks-auth') {
+          const key = process.env.LIVEBLOCKS_SECRET_KEY || '';
+          if (!key) return json({ ok: false, fallback: 'hub', hint: 'Set LIVEBLOCKS_SECRET_KEY to enable cloud presence; hub ops work without it.' });
+          if (req.method !== 'POST') return json({ ok: false, error: 'POST required' }, 405);
+          // Full Liveblocks token mint needs the @liveblocks/node SDK (not a
+          // zero-dep). Return capability descriptor so the client can decide.
+          return json({ ok: true, mode: 'bring-your-token', hint: 'POST {room, user} with a Liveblocks secret to mint here after adding @liveblocks/node.' });
         }
         // ---- voice: signaling-only; media stays P2P between browsers ----
         if (req.method === 'POST' && api === 'voice-join') {

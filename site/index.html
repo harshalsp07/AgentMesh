@@ -330,8 +330,11 @@
           <button data-tool="note" id="btn-tool-note">🗈 Sticky Note</button>
           <button data-tool="select" id="btn-tool-select">⇱ Select / Move</button>
           <button id="btn-tool-delete" style="color:var(--rose-bad);border-color:rgba(244,63,94,0.3);">🗑 Delete Selected</button>
-          
+
           <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+            <span id="tldraw-status" role="status" style="font-size:0.75rem;color:var(--text-dim);">legacy board · hub-synced</span>
+            <button class="btn-ghost" id="btn-board-tldraw-sync" style="display:none;">Sync to hub</button>
+            <button class="btn-ghost" id="btn-board-tldraw-load" style="display:none;">Load from hub</button>
             <span style="font-size:0.75rem;color:var(--text-dim);">Color:</span>
             <select id="board-color" style="background:var(--bg-input);border:1px solid var(--border-card);color:var(--text-main);padding:4px 8px;border-radius:var(--radius-sm);font-size:0.78rem;">
               <option value="#00f2fe">Electric Cyan</option>
@@ -344,7 +347,8 @@
         </div>
 
         <div class="board-stage" id="board-stage">
-          <svg id="board-svg"></svg>
+          <svg id="board-svg" role="application" aria-label="AgentMesh legacy whiteboard"></svg>
+          <div class="kbd" style="margin-top:8px;">Tip: open <code>?board=tldraw</code> for the open-source tldraw canvas (pan/zoom, text, undo) — same hub sync, no custom drawing code.</div>
         </div>
       </div>
     </section>

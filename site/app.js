@@ -271,7 +271,8 @@
         try {
           const data = JSON.parse(e.data);
           logEvent(data);
-          syncHubOverview();
+          if (data && data.kind === 'board.op') scheduleBoardPull();
+          else syncHubOverview();
         } catch {}
       };
       sse.onerror = () => {
@@ -924,6 +925,70 @@
     renderDagTimeline();
   }
 
+  // --- Hub-synced board: hub ops are the default fast path (LAN, no key) ---
+  const HUB_COLOR_HEX = { yellow: '#f59e0b', blue: '#00f2fe', green: '#10b981', pink: '#f43f5e', gray: '#9fb3c8', red: '#f43f5e' };
+  const HEX_HUB_COLOR = { '#f59e0b': 'yellow', '#00f2fe': 'blue', '#10b981': 'green', '#f43f5e': 'red', '#8b5cf6': 'pink', '#9fb3c8': 'gray' };
+  let boardPullTimer = 0;
+  function boardActor() { try { return localStorage.getItem('mesh_actor') || 'browser'; } catch { return 'browser'; } }
+  function boardStatus(msg) { const el = $('tldraw-status'); if (el) el.textContent = msg; }
+  function hubToLegacy(s) {
+    const hex = HUB_COLOR_HEX[s.color] || '#00f2fe';
+    if (s.type === 'draw' && Array.isArray(s.points) && s.points.length > 1) {
+      return { id: s.id, type: 'path', d: 'M ' + s.points.map((p) => `${p[0]} ${p[1]}`).join(' L '), color: hex };
+    }
+    return { id: s.id, type: s.type === 'note' || s.type === 'text' ? 'note' : 'rect', x: +s.x || 0, y: +s.y || 0, width: +s.w || 180, height: +s.h || 120, color: hex, text: s.text || '' };
+  }
+  function legacyToHub(shape) {
+    const color = HEX_HUB_COLOR[(shape.color || '').toLowerCase()] || 'yellow';
+    if (shape.type === 'path') {
+      const nums = String(shape.d || '').replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number).filter((n) => isFinite(n));
+      const points = [];
+      for (let i = 0; i + 1 < nums.length && points.length < 500; i += 2) points.push([Math.round(nums[i]), Math.round(nums[i + 1])]);
+      if (points.length < 2) return null;
+      const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+      return { type: 'draw', x: Math.min(...xs), y: Math.min(...ys), points, color };
+    }
+    return { type: shape.type === 'note' ? 'note' : 'rect', x: Math.round(shape.x || 0), y: Math.round(shape.y || 0), w: Math.round(shape.width || 180), h: Math.round(shape.height || 120), color, text: String(shape.text || '').slice(0, 500) };
+  }
+  async function boardPull() {
+    if (!state.isHubConnected) { boardStatus('legacy board · local-only · hub unreachable'); return; }
+    try {
+      const r = await fetch(`${state.hubUrl}/api/board`);
+      if (!r.ok) return;
+      const b = await r.json();
+      if (b && b.shapes) {
+        const list = Object.values(b.shapes).map(hubToLegacy);
+        // Don't clobber an in-progress stroke
+        if (!state.isDrawing) { state.boardShapes = list.length ? list : state.boardShapes; renderBoard(); }
+        boardStatus(`legacy board · hub-synced · seq ${b.seq ?? '?'} · ${list.length} shapes`);
+      }
+    } catch { boardStatus('legacy board · local-only · hub unreachable'); }
+  }
+  async function boardPush(op) {
+    if (!state.isHubConnected) return;
+    try {
+      await fetch(`${state.hubUrl}/api/board-op`, {
+        method: 'POST', headers: { 'content-type': 'application/json', ...(state.token ? { authorization: 'Bearer ' + state.token } : {}) },
+        body: JSON.stringify({ actor: boardActor(), op }),
+      });
+    } catch { /* local-first: sync resumes on next pull */ }
+  }
+  function scheduleBoardPull() { clearTimeout(boardPullTimer); boardPullTimer = setTimeout(boardPull, 500); }
+  function bootstrapTldrawFlag() {
+    let useTldraw = false;
+    try { useTldraw = new URLSearchParams(location.search).get('board') === 'tldraw'; } catch {}
+    if (!useTldraw) return;
+    const syncBtn = $('btn-board-tldraw-sync'), loadBtn = $('btn-board-tldraw-load');
+    if (syncBtn) syncBtn.style.display = '';
+    if (loadBtn) loadBtn.style.display = '';
+    boardStatus('tldraw · loading…');
+    const s = document.createElement('script');
+    s.src = './board-tldraw.js';
+    s.onload = () => { try { window.AgentMeshBoardTldraw && window.AgentMeshBoardTldraw.mount(); } catch {} };
+    s.onerror = () => boardStatus('tldraw failed to load · legacy board');
+    document.head.appendChild(s);
+  }
+
   // --- Real Collaborative Whiteboard Engine ---
   function initBoard() {
     const stage = $('board-stage');
@@ -940,6 +1005,10 @@
     }
     renderBoard();
 
+    // Hub sync: pull shared state, then optionally mount open-source tldraw
+    boardPull();
+    bootstrapTldrawFlag();
+
     // Tool selectors
     $('btn-tool-pen')?.addEventListener('click', () => setBoardTool('pen'));
     $('btn-tool-rect')?.addEventListener('click', () => setBoardTool('rect'));
@@ -949,6 +1018,7 @@
     $('btn-board-clear')?.addEventListener('click', () => {
       state.boardShapes = [];
       renderBoard();
+      boardPush({ op: 'clear' });
       toast('Canvas cleared.', 'info');
     });
 
@@ -1032,6 +1102,12 @@
     window.addEventListener('mouseup', () => {
       if (state.isDrawing) {
         state.isDrawing = false;
+        // Push the finished stroke/block as one op (fast: no per-move traffic)
+        const last = state.boardShapes[state.boardShapes.length - 1];
+        if (last && (last.type === 'path' || last.type === 'rect')) {
+          const hub = legacyToHub(last);
+          if (hub) { boardPush({ op: 'add', shape: hub }); scheduleBoardPull(); }
+        }
         state.activePenPath = null;
         renderBoard();
       }
@@ -1077,9 +1153,11 @@
       toast('No shape selected.', 'warning');
       return;
     }
-    state.boardShapes = state.boardShapes.filter((s) => s.id !== state.selectedShapeId);
+    const doomed = state.selectedShapeId;
+    state.boardShapes = state.boardShapes.filter((s) => s.id !== doomed);
     state.selectedShapeId = null;
     renderBoard();
+    boardPush({ op: 'delete', id: doomed });
     toast('Deleted shape.', 'info');
   }
 

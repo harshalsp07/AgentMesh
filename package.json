@@ -24,6 +24,8 @@
   },
   "scripts": {
     "dev": "node src/hub.mjs",
+    "dev:lan": "MESH_HOST=0.0.0.0 node src/hub.mjs",
+    "setup": "cp -n .env.example .env 2>/dev/null || true; echo 'Edit .env (optional LIVEBLOCKS_SECRET_KEY), then: npm test && npm run dev'",
     "start": "node src/hub.mjs",
     "demo": "node demo.mjs",
     "demo:1": "node demo-phase1.mjs",
