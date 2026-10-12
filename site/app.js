@@ -29,9 +29,9 @@
 
     // Swarm Agent Roster (Multi-Harness)
     agents: [
-      { id: 'antigravity-ui', name: 'Antigravity UI Lead', role: 'UI & Frontend Architecture', host: 'Laptop 1 (Antigravity IDE)', provider: 'Google Antigravity', model: 'IDE Agent', lane: 'lane/antigravity-ui', color: '#00f2fe', status: 'active', task: 'Observatory & UI components' },
-      { id: 'codex-backend', name: 'Codex Core Dev', role: 'Backend & Event Bus Engine', host: 'Laptop 2 (Codex / Cursor)', provider: 'OpenAI Codex', model: 'Cursor / CLI', lane: 'lane/codex-backend', color: '#f59e0b', status: 'active', task: 'API routes & AST contracts' },
-      { id: 'contract-auditor', name: 'Contract Steward', role: 'AST Invariants & Verification', host: 'LAN / Automated Test Harness', provider: 'AgentMesh AST', model: 'AST-L4', lane: 'lane/contracts', color: '#10b981', status: 'idle', task: 'Guarding breaking changes' },
+      { id: 'antigravity-ui', name: 'Antigravity UI Lead', role: 'UI & Frontend Architecture', host: 'Laptop 1 (Antigravity IDE)', provider: 'Google Antigravity', model: 'IDE Agent', lane: 'lane/antigravity-ui', color: '#ece3cb', status: 'active', task: 'Observatory & UI components' },
+      { id: 'codex-backend', name: 'Codex Core Dev', role: 'Backend & Event Bus Engine', host: 'Laptop 2 (Codex / Cursor)', provider: 'OpenAI Codex', model: 'Cursor / CLI', lane: 'lane/codex-backend', color: '#ff4d00', status: 'active', task: 'API routes & AST contracts' },
+      { id: 'contract-auditor', name: 'Contract Steward', role: 'AST Invariants & Verification', host: 'LAN / Automated Test Harness', provider: 'AgentMesh AST', model: 'AST-L4', lane: 'lane/contracts', color: '#46a35a', status: 'idle', task: 'Guarding breaking changes' },
     ],
     requests: [],
 
@@ -363,26 +363,33 @@
     const intentCount = state.intents.length;
     if ($('metric-intents')) {
       $('metric-intents').textContent = `${intentCount} active`;
-      $('metric-intents').style.color = state.collisions.length ? 'var(--amber-warn)' : 'var(--cyan-core)';
     }
+    const seg = $('metric-intents-seg');
+    if (seg) seg.classList.toggle('hot', state.collisions.length > 0);
 
     const collisionSub = $('metric-collision-sub');
     if (collisionSub) {
-      collisionSub.textContent = state.collisions.length
-        ? `⚠️ ${state.collisions.length} Collision forecasted!`
-        : 'AST graph collision: None';
-      collisionSub.style.color = state.collisions.length ? 'var(--amber-warn)' : 'var(--text-muted)';
+      collisionSub.innerHTML = state.collisions.length
+        ? `⚠ <b>${state.collisions.length} CONFLICT</b>`
+        : 'NO CONFLICTS';
+      collisionSub.classList.toggle('hot', state.collisions.length > 0);
     }
 
     const alertBanner = $('collision-alert-banner');
     if (alertBanner) {
       if (state.collisions.length) {
         alertBanner.style.display = 'block';
-        alertBanner.innerHTML = `⚠️ <strong>Intent Collision Forecasted:</strong> ${state.collisions.map((c) => `@${c.a} and @${c.b} overlap on path scope (${c.grade})`).join('; ')}. Coordinate via MACP before merging!`;
+        alertBanner.innerHTML = `⚠ <strong>CONFLICT ON THE BOARD:</strong> ${state.collisions.map((c) => `@${c.a} × @${c.b} overlap (${c.grade})`).join(' · ')}. Settle it in MACP before merging.`;
       } else {
         alertBanner.style.display = 'none';
       }
     }
+
+    // Light the switchboard key when the topo desk needs attention
+    const topoTab = $('tab-btn-topo');
+    if (topoTab) topoTab.classList.toggle('alert', state.collisions.length > 0);
+    const stripCount = $('strip-count');
+    if (stripCount) stripCount.textContent = `${intentCount} strip${intentCount === 1 ? '' : 's'} · leases with AST collision forecast`;
   }
 
   // --- Topology Graph (Interactive SVG) ---
@@ -399,27 +406,27 @@
     // Draw grid background lines
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     defs.innerHTML = `
-      <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.3"/>
-        <stop offset="100%" stop-color="#00f2fe" stop-opacity="0"/>
+      <radialGradient id="hubHalo" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ff4d00" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#ff4d00" stop-opacity="0"/>
       </radialGradient>
     `;
     svg.appendChild(defs);
 
     // Draw central Mesh Hub node
-    const hubGlow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    hubGlow.setAttribute('cx', centerX);
-    hubGlow.setAttribute('cy', centerY);
-    hubGlow.setAttribute('r', '80');
-    hubGlow.setAttribute('fill', 'url(#hubGlow)');
-    svg.appendChild(hubGlow);
+    const hubHalo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    hubHalo.setAttribute('cx', centerX);
+    hubHalo.setAttribute('cy', centerY);
+    hubHalo.setAttribute('r', '80');
+    hubHalo.setAttribute('fill', 'url(#hubHalo)');
+    svg.appendChild(hubHalo);
 
     const hubCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     hubCircle.setAttribute('cx', centerX);
     hubCircle.setAttribute('cy', centerY);
     hubCircle.setAttribute('r', '32');
-    hubCircle.setAttribute('fill', '#0c1220');
-    hubCircle.setAttribute('stroke', '#00f2fe');
+    hubCircle.setAttribute('fill', '#131418');
+    hubCircle.setAttribute('stroke', '#ff4d00');
     hubCircle.setAttribute('stroke-width', '2.5');
     svg.appendChild(hubCircle);
 
@@ -451,7 +458,7 @@
       line.setAttribute('y1', centerY);
       line.setAttribute('x2', x);
       line.setAttribute('y2', y);
-      line.setAttribute('stroke', 'rgba(56, 189, 248, 0.2)');
+      line.setAttribute('stroke', 'rgba(233, 228, 214, 0.18)');
       line.setAttribute('stroke-width', '1.5');
       line.setAttribute('stroke-dasharray', '4 4');
       svg.appendChild(line);
@@ -464,8 +471,8 @@
       agentCircle.setAttribute('cx', x);
       agentCircle.setAttribute('cy', y);
       agentCircle.setAttribute('r', '24');
-      agentCircle.setAttribute('fill', '#0e1526');
-      agentCircle.setAttribute('stroke', ag.color || '#38bdf8');
+      agentCircle.setAttribute('fill', '#16181d');
+      agentCircle.setAttribute('stroke', ag.color || '#a39c88');
       agentCircle.setAttribute('stroke-width', '2');
       nodeG.appendChild(agentCircle);
 
@@ -484,7 +491,7 @@
       title.setAttribute('x', x);
       title.setAttribute('y', y + 36);
       title.setAttribute('text-anchor', 'middle');
-      title.setAttribute('fill', '#94a3b8');
+      title.setAttribute('fill', '#6e6759');
       title.setAttribute('font-size', '10');
       title.setAttribute('font-weight', '600');
       title.textContent = `@${ag.id}`;
@@ -507,7 +514,7 @@
         cLine.setAttribute('y1', p1.y);
         cLine.setAttribute('x2', p2.x);
         cLine.setAttribute('y2', p2.y);
-        cLine.setAttribute('stroke', '#f59e0b');
+        cLine.setAttribute('stroke', '#ff4d00');
         cLine.setAttribute('stroke-width', '2.5');
         svg.appendChild(cLine);
       }
@@ -516,25 +523,37 @@
 
   // --- Intent Registry Table ---
   function renderIntentsTable() {
-    const tbody = $('intents-tbody');
-    if (!tbody) return;
+    const rack = $('intents-strip');
+    if (!rack) return;
     if (!state.intents.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">No active declared intents. Click "+ Declare Intent" to reserve scope before editing.</td></tr>`;
+      rack.innerHTML = `<div class="strip-empty">RACK EMPTY — declare an intent to pin your first strip before editing.</div>`;
       return;
     }
+    const clashActors = new Set();
+    state.collisions.forEach((c) => { clashActors.add(c.a); clashActors.add(c.b); });
 
-    tbody.innerHTML = state.intents.map((i) => `
-      <tr>
-        <td style="color:var(--text-main);font-weight:600;">@${i.actor}</td>
-        <td>${i.goal}</td>
-        <td><code>${(i.paths || []).join(', ')}</code></td>
-        <td><span class="provider-tag ${i.effect === 'breaking' ? 'provider-anthropic' : i.effect === 'additive' ? 'provider-openai' : 'provider-gemini'}">${i.effect || 'none'}</span></td>
-        <td><span style="color:var(--emerald-ok);">● Active Lease</span></td>
-        <td>
-          <button class="btn-ghost" onclick="window.AgentMeshApp.releaseIntent('${i.id}')" style="padding:2px 8px;font-size:0.72rem;color:var(--rose-bad);border-color:rgba(244,63,94,0.3);">Release</button>
-        </td>
-      </tr>
-    `).join('');
+    rack.innerHTML = state.intents.map((i) => {
+      const fx = i.effect || 'none';
+      const clash = clashActors.has(i.actor);
+      return `
+      <div class="strip${clash ? ' collide' : ''}">
+        <span class="edge"></span>
+        <div class="actor">@${i.actor}</div>
+        <div>
+          <div class="goal">${escapeHtml(i.goal)}</div>
+          <div class="paths">${escapeHtml((i.paths || []).join(' · '))}</div>
+        </div>
+        <div class="meta">
+          <span class="fx ${fx}">${fx}</span>
+          <span class="lease">${clash ? '⚠ OVERLAP' : '▪ ON LEASE'}</span>
+          <button onclick="window.AgentMeshApp.releaseIntent('${i.id}')">Release</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   // --- Agent Roster Rendering ---
@@ -546,24 +565,24 @@
 
     if (container) {
       container.innerHTML = state.agents.map((ag) => `
-        <div class="agent-card">
+        <div class="agent-card ${ag.status === 'idle' ? 'idle' : 'on'}">
           <div class="agent-card-header">
             <div class="agent-badge">
               <div class="agent-avatar" style="background:${ag.color}">${ag.name.slice(0, 2).toUpperCase()}</div>
               <div>
-                <div style="font-weight:700;font-size:0.88rem;color:#fff;">${ag.name}</div>
-                <div style="font-size:0.72rem;color:var(--text-dim);">@${ag.id} &bull; ${ag.role}</div>
+                <div style="font-weight:700;font-size:0.88rem;color:var(--txt);">${ag.name}</div>
+                <div style="font-size:0.72rem;color:var(--dim);">@${ag.id} &bull; ${ag.role}</div>
               </div>
             </div>
             <span class="provider-tag provider-${ag.provider}">${ag.provider}</span>
           </div>
-          <div style="font-size:0.78rem;color:var(--text-muted);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.04);">
-            <div><strong>Model:</strong> <span style="font-family:var(--font-mono);color:var(--cyan-soft);">${ag.model}</span></div>
-            <div><strong>Lane:</strong> <span style="font-family:var(--font-mono);">${ag.lane}</span></div>
+          <div style="font-size:0.78rem;color:var(--mut);background:#0a0b0e;padding:8px 10px;border-radius:3px;border:1px solid rgba(255,255,255,0.04);">
+            <div><strong>Model:</strong> <span style="font-family:var(--mono);color:var(--signal);">${ag.model}</span></div>
+            <div><strong>Lane:</strong> <span style="font-family:var(--mono);">${ag.lane}</span></div>
             <div style="margin-top:4px;"><strong>Task:</strong> ${ag.task}</div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;">
-            <span style="font-size:0.72rem;color:${ag.status === 'idle' ? 'var(--text-dim)' : 'var(--emerald-ok)'};font-weight:600;">
+            <span style="font-size:0.72rem;color:${ag.status === 'idle' ? 'var(--dim)' : 'var(--ok)'};font-weight:600;">
               ● ${ag.status.toUpperCase()}
             </span>
             <button class="btn-ghost" onclick="window.AgentMeshApp.quickPromptAgent('${ag.id}')" style="padding:3px 9px;font-size:0.72rem;">Dispatch Task</button>
@@ -636,13 +655,13 @@
     const tbody = $('requests-tbody');
     if (!tbody) return;
     if (!state.requests || !state.requests.length) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>`;
       return;
     }
     tbody.innerHTML = state.requests.map((r) => `
       <tr>
-        <td style="color:#00f2fe;font-weight:600;">@${r.actor}</td>
-        <td style="color:#f59e0b;font-weight:600;">@${r.to}</td>
+        <td style="color:var(--paper);font-weight:600;">@${r.actor}</td>
+        <td style="color:var(--signal);font-weight:600;">@${r.to}</td>
         <td style="font-size:0.75rem;">${r.text}</td>
         <td><span class="provider-tag ${r.status === 'done' ? 'provider-openai' : r.status === 'working' ? 'provider-anthropic' : 'provider-gemini'}">${r.status || 'queued'}</span></td>
       </tr>
@@ -720,16 +739,16 @@
     if (!tbody) return;
     const entries = Object.entries(state.crdtSymbols);
     if (!entries.length) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No CRDT registers found.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--dim);padding:20px;">No CRDT registers found.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = entries.map(([key, item]) => `
       <tr>
-        <td style="color:var(--cyan-soft);font-weight:600;">${key}</td>
+        <td style="color:var(--signal);font-weight:600;">${key}</td>
         <td><code>${item.value}</code></td>
         <td>@${item.actor}</td>
-        <td><span style="font-family:var(--font-mono);color:var(--purple-soft);">L-${item.lamport}</span></td>
+        <td><span style="font-family:var(--mono);color:var(--mut);">L-${item.lamport}</span></td>
         <td>
           <button class="btn-ghost" onclick="window.AgentMeshApp.editCrdtSymbol('${key}', '${item.value}')" style="padding:2px 8px;font-size:0.72rem;">Mutate</button>
         </td>
@@ -778,7 +797,7 @@
     const container = $('macp-sessions-container');
     if (!container) return;
     if (!state.macpSessions.length) {
-      container.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:30px;">No open MACP coordination sessions.</div>`;
+      container.innerHTML = `<div style="text-align:center;color:var(--dim);padding:30px;">No open MACP coordination sessions.</div>`;
       return;
     }
 
@@ -794,8 +813,8 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
             <div>
               <span class="provider-tag provider-gemini" style="margin-right:6px;">MODE: ${s.mode.toUpperCase()}</span>
-              <strong style="font-size:0.95rem;color:#fff;">${s.title}</strong>
-              <div style="font-size:0.75rem;color:var(--text-dim);margin-top:3px;">
+              <strong style="font-size:0.95rem;color:var(--txt);">${s.title}</strong>
+              <div style="font-size:0.75rem;color:var(--dim);margin-top:3px;">
                 Initiated by @${s.initiator} &bull; Threshold: ${s.threshold || 2} approvals
               </div>
             </div>
@@ -809,11 +828,11 @@
             <div class="vote-bar-fill-no" style="width:${totalVotes ? (noCount / totalVotes) * 100 : 0}%;"></div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:0.76rem;color:var(--text-muted);">
-            <div>Approvals: <strong style="color:var(--emerald-ok);">${yesCount}</strong> Yes &bull; <strong style="color:var(--rose-bad);">${noCount}</strong> No</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:0.76rem;color:var(--mut);">
+            <div>Approvals: <strong style="color:var(--ok);">${yesCount}</strong> Yes &bull; <strong style="color:var(--bad);">${noCount}</strong> No</div>
             <div style="display:flex;gap:6px;">
-              <button class="btn-ghost" onclick="window.AgentMeshApp.castMacpVote('${s.id}', 'yes')" style="color:var(--emerald-ok);border-color:rgba(16,185,129,0.3);padding:3px 9px;">Vote Yes</button>
-              <button class="btn-ghost" onclick="window.AgentMeshApp.castMacpVote('${s.id}', 'no')" style="color:var(--rose-bad);border-color:rgba(244,63,94,0.3);padding:3px 9px;">Vote No</button>
+              <button class="btn-ghost" onclick="window.AgentMeshApp.castMacpVote('${s.id}', 'yes')" style="color:var(--ok);border-color:var(--line);padding:3px 9px;">Vote Yes</button>
+              <button class="btn-ghost" onclick="window.AgentMeshApp.castMacpVote('${s.id}', 'no')" style="color:var(--bad);border-color:var(--line);padding:3px 9px;">Vote No</button>
             </div>
           </div>
         </div>
@@ -886,7 +905,7 @@
     const container = $('dag-timeline-container');
     if (!container) return;
     if (!state.dagNodes.length) {
-      container.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:30px;">No DAG nodes found.</div>`;
+      container.innerHTML = `<div style="text-align:center;color:var(--dim);padding:30px;">No DAG nodes found.</div>`;
       return;
     }
 
@@ -899,10 +918,10 @@
           </div>
           <span class="provider-tag provider-gemini">${node.kind || 'commit'}</span>
         </div>
-        <div style="font-size:0.75rem;color:var(--text-muted);">
+        <div style="font-size:0.75rem;color:var(--mut);">
           Author: <strong>@${node.actor}</strong> &bull; Parents: <code>${(node.parents || []).join(', ') || 'root'}</code>
         </div>
-        <div style="font-family:var(--font-mono);font-size:0.75rem;color:#cbd5e1;background:rgba(0,0,0,0.3);padding:6px 10px;border-radius:4px;">
+        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt);background:#0a0b0e;padding:6px 10px;border-radius:4px;">
           ${JSON.stringify(node.payload || {})}
         </div>
       </div>

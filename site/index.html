@@ -3,36 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AgentMesh — Universal Multi-Agent Swarm Coordination Platform</title>
-  <meta name="description" content="Production-grade multi-agent coordination control plane across Google Antigravity/Gemini, OpenAI, Anthropic Claude, Ollama, DeepSeek, and OpenRouter with Delta-State Semantic CRDTs, MACP bounded sessions, and epistemic Merkle-DAG provenance.">
-  <meta name="theme-color" content="#06080e">
+  <title>AgentMesh — Strip Board</title>
+  <meta name="description" content="AgentMesh strip board: agent intents as paper strips, LAN-fast hub sync, tldraw canvas.">
+  <meta name="theme-color" content="#0c0d10">
 
   <!-- OpenGraph / Social Metadata -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AgentMesh — Universal Multi-Agent Swarm Platform">
-  <meta property="og:description" content="Universal multi-agent coordination kernel: Delta-State Semantic CRDT, MACP 5-mode consensus, Epistemic Merkle DAG, and real multi-provider AI swarm execution.">
+  <meta property="og:title" content="AgentMesh — Strip Board">
+  <meta property="og:description" content="Agent intents as paper strips on a signal-room board. LAN-fast, no slop.">
   <meta property="twitter:card" content="summary_large_image">
 
   <!-- Web App Manifest -->
   <link rel="manifest" href="./manifest.webmanifest">
 
-  <!-- Fonts & Stylesheet -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- No webfonts: system condensed + mono stacks (offline-fast, no FOUT) -->
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
-  <!-- Application Header -->
+  <!-- Application Header: equipment plate + switchboard -->
   <header class="app-header" id="main-header">
     <div class="brand-section">
-      <a href="/" class="logo-badge" id="brand-link">
-        <div class="logo-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        </div>
-        <span>AgentMesh</span>
-      </a>
+      <div class="plate">
+        <a href="/" class="logo-badge" id="brand-link">
+          <div class="logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>AgentMesh</span>
+        </a>
+        <div class="plate-sub">STRIP BOARD · 01</div>
+      </div>
       <button class="status-pill standalone" id="hub-status-badge" title="Click to configure hub connection">
         <span class="status-dot"></span> <span id="hub-status-text">Hub: Connecting...</span>
       </button>
@@ -41,16 +41,16 @@
       </button>
     </div>
 
-    <!-- Navigation Tabs -->
+    <!-- Navigation: switchboard keys -->
     <nav class="nav-tabs" id="navigation-tabs" aria-label="Main Navigation">
-      <button data-tab="topo" class="active" id="tab-btn-topo">1. Topology &amp; Intents</button>
-      <button data-tab="swarm" id="tab-btn-swarm">2. Multi-Harness Swarm &amp; Roster</button>
-      <button data-tab="crdt" id="tab-btn-crdt">3. Semantic CRDT</button>
-      <button data-tab="macp" id="tab-btn-macp">4. MACP Kernel</button>
-      <button data-tab="dag" id="tab-btn-dag">5. Merkle DAG</button>
-      <button data-tab="board" id="tab-btn-board">6. Whiteboard</button>
-      <button data-tab="voice" id="tab-btn-voice">7. Voice &amp; P2P</button>
-      <button data-tab="health" id="tab-btn-health">8. Health &amp; Logs</button>
+      <button data-tab="topo" class="active" id="tab-btn-topo" title="Topology & Intents"><span class="tabnum">01</span>TOPO</button>
+      <button data-tab="swarm" id="tab-btn-swarm" title="Multi-Harness Swarm & Roster"><span class="tabnum">02</span>SWARM</button>
+      <button data-tab="crdt" id="tab-btn-crdt" title="Semantic CRDT"><span class="tabnum">03</span>CRDT</button>
+      <button data-tab="macp" id="tab-btn-macp" title="MACP Kernel"><span class="tabnum">04</span>MACP</button>
+      <button data-tab="dag" id="tab-btn-dag" title="Merkle DAG"><span class="tabnum">05</span>DAG</button>
+      <button data-tab="board" id="tab-btn-board" title="Whiteboard"><span class="tabnum">06</span>BOARD</button>
+      <button data-tab="voice" id="tab-btn-voice" title="Voice & P2P"><span class="tabnum">07</span>VOICE</button>
+      <button data-tab="health" id="tab-btn-health" title="Health & Logs"><span class="tabnum">08</span>HEALTH</button>
     </nav>
 
     <!-- Header Actions -->
@@ -64,28 +64,13 @@
   <!-- Main Content Stage -->
   <main class="app-main" id="content-stage">
     
-    <!-- Top Level Metric Stats Row -->
-    <section class="metric-row" aria-label="Mesh Statistics">
-      <div class="metric-card">
-        <div class="label">Event Sequence</div>
-        <div class="val" id="metric-seq">#0</div>
-        <div class="sub">SQLite WAL State Log</div>
-      </div>
-      <div class="metric-card">
-        <div class="label">Trunk Head</div>
-        <div class="val" id="metric-trunk">v1.2.0-main</div>
-        <div class="sub">CAS-gated Integration</div>
-      </div>
-      <div class="metric-card">
-        <div class="label">Active Swarm Agents</div>
-        <div class="val" id="metric-agents">4</div>
-        <div class="sub" id="metric-providers-sub">Antigravity • Claude • GPT-4o • Ollama</div>
-      </div>
-      <div class="metric-card">
-        <div class="label">Intent Conduits</div>
-        <div class="val" id="metric-intents" style="color:var(--cyan-core);">0 active</div>
-        <div class="sub" id="metric-collision-sub">AST graph collision: None</div>
-      </div>
+    <!-- Room readout: one mono line, not four glass cards -->
+    <section class="readout" aria-label="Mesh Status">
+      <span class="ro-seg">SEQ <b class="val" id="metric-seq">#0</b></span>
+      <span class="ro-seg">TRUNK <b class="val" id="metric-trunk">v1.2.0-main</b></span>
+      <span class="ro-seg">AGENTS <b class="val" id="metric-agents">4</b></span>
+      <span class="ro-seg" id="metric-intents-seg">INTENTS <b class="val" id="metric-intents">0 active</b></span>
+      <span class="ro-seg" id="metric-collision-sub">NO CONFLICTS</span>
     </section>
 
     <!-- Tab 1: Live Interactive Topology Graph & Intent Registry -->
@@ -102,37 +87,21 @@
           <div class="topology-stage">
             <svg id="topology-svg" viewBox="0 0 960 480" preserveAspectRatio="xMidYMid meet"></svg>
             <div class="topo-controls">
-              <span style="font-size:0.75rem;color:var(--text-dim);padding:4px 8px;">Real-Time AST Intent Graph &bull; Drag to Inspect</span>
+              <span class="kbd">Real-time AST intent graph · drag to inspect</span>
             </div>
           </div>
         </div>
 
-        <!-- Live Intent Registry -->
+        <!-- Declared intents as paper strips on the rack -->
         <div class="card" style="grid-column: 1 / -1;">
           <div class="card-header">
-            <h2>Active Declared Intent Registry</h2>
-            <span style="font-size:0.75rem;color:var(--emerald-ok);">Pre-edit Scope Leases with AST Collision Forecasting</span>
+            <h2>Strips on the board</h2>
+            <span class="kbd" id="strip-count">0 strips · leases with AST collision forecast</span>
           </div>
-          <div id="collision-alert-banner" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);padding:10px 14px;border-radius:var(--radius-sm);color:var(--amber-soft);font-size:0.82rem;">
+          <div id="collision-alert-banner" style="display:none;">
             ⚠️ <strong>Intent Collision Forecasted:</strong> Overlapping scopes detected. MACP coordination required before commit.
           </div>
-          <div style="overflow-x:auto;">
-            <table class="data-table" aria-label="Declared Intents Table">
-              <thead>
-                <tr>
-                  <th>Actor / Agent</th>
-                  <th>Declared Goal</th>
-                  <th>Target Paths</th>
-                  <th>Contract Effect</th>
-                  <th>Lease Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="intents-tbody">
-                <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">No active declared intents. Click "+ Declare Intent" to reserve scope.</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="strip-rack" id="intents-strip" aria-label="Declared Intent Strips"></div>
         </div>
       </div>
     </section>
@@ -147,7 +116,7 @@
             <button class="btn-ghost" id="btn-configure-providers">⚙ Multi-Laptop Settings</button>
           </div>
         </div>
-        <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">
+        <p style="font-size:0.84rem;color:var(--mut);margin-top:-6px;">
           Live status of independent AI coding agents collaborating across workstations: Google Antigravity on Laptop 1 (UI) and OpenAI Codex / Cursor / Claude Code on Laptop 2 (Backend).
         </p>
 
@@ -160,24 +129,24 @@
         <div class="card">
           <div class="card-header">
             <h2>Inter-Agent Task Delegation (`mesh_request`)</h2>
-            <span style="font-size:0.75rem;color:var(--cyan-soft);">Cross-Harness Messaging</span>
+            <span style="font-size:0.75rem;color:var(--signal);">Cross-Harness Messaging</span>
           </div>
-          <p style="font-size:0.82rem;color:var(--text-muted);">
+          <p style="font-size:0.82rem;color:var(--mut);">
             Send structured tasks or contract requests directly between Laptop 1 (`antigravity-ui`) and Laptop 2 (`codex-backend`). Delivered immediately to the target agent's MCP inbox.
           </p>
 
           <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               <div class="form-group" style="margin:0;">
-                <label for="req-from-select" style="font-size:0.75rem;color:var(--text-dim);">From (Caller Agent)</label>
-                <select id="req-from-select" style="width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;">
+                <label for="req-from-select" style="font-size:0.75rem;color:var(--dim);">From (Caller Agent)</label>
+                <select id="req-from-select" style="width:100%;padding:8px;background:#0a0b0e;border:1px solid var(--line);border-radius:3px;color:var(--txt);">
                   <option value="antigravity-ui">@antigravity-ui (Laptop 1: UI)</option>
                   <option value="codex-backend">@codex-backend (Laptop 2: Backend)</option>
                 </select>
               </div>
               <div class="form-group" style="margin:0;">
-                <label for="req-to-select" style="font-size:0.75rem;color:var(--text-dim);">To (Target Agent)</label>
-                <select id="req-to-select" style="width:100%;padding:8px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;">
+                <label for="req-to-select" style="font-size:0.75rem;color:var(--dim);">To (Target Agent)</label>
+                <select id="req-to-select" style="width:100%;padding:8px;background:#0a0b0e;border:1px solid var(--line);border-radius:3px;color:var(--txt);">
                   <option value="codex-backend">@codex-backend (Laptop 2: Backend)</option>
                   <option value="antigravity-ui">@antigravity-ui (Laptop 1: UI)</option>
                 </select>
@@ -185,7 +154,7 @@
             </div>
 
             <div class="form-group" style="margin:0;">
-              <label for="req-text-input" style="font-size:0.75rem;color:var(--text-dim);">Task / Contract Request Text</label>
+              <label for="req-text-input" style="font-size:0.75rem;color:var(--dim);">Task / Contract Request Text</label>
               <textarea id="req-text-input" class="mission-textarea" style="min-height:75px;" placeholder="e.g. Expose GET /api/mesh/topology in src/hub.mjs returning active peers array"></textarea>
             </div>
 
@@ -203,16 +172,16 @@
         <div class="card">
           <div class="card-header">
             <h2>Connect Laptop 2 in 1 Command</h2>
-            <span style="font-size:0.75rem;color:var(--emerald-soft);">Zero-Config Join</span>
+            <span style="font-size:0.75rem;color:var(--ok);">Zero-Config Join</span>
           </div>
-          <p style="font-size:0.82rem;color:var(--text-muted);">
+          <p style="font-size:0.82rem;color:var(--mut);">
             Run this command on Laptop 2 to instantly join the mesh and configure Cursor, Codex, or Claude Code:
           </p>
-          <div style="background:rgba(0,0,0,0.5);border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:12px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;">
-            <code id="join-cmd-snippet" style="font-family:var(--font-mono);color:var(--cyan-core);font-size:0.85rem;">./bin/mesh-join http://<span id="host-ip-placeholder">127.0.0.1</span>:7777</code>
+          <div style="background:#0a0b0e;border:1px solid var(--line);border-radius:3px;padding:12px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;">
+            <code id="join-cmd-snippet" style="font-family:var(--mono);color:var(--signal);font-size:0.85rem;">./bin/mesh-join http://<span id="host-ip-placeholder">127.0.0.1</span>:7777</code>
             <button class="btn-ghost" id="btn-copy-join-cmd" style="padding:4px 10px;font-size:0.75rem;">Copy</button>
           </div>
-          <h4 style="font-size:0.8rem;color:var(--text-dim);margin-top:10px;text-transform:uppercase;">Active Requests &amp; Approval Chips</h4>
+          <h4 style="font-size:0.8rem;color:var(--dim);margin-top:10px;text-transform:uppercase;">Active Requests &amp; Approval Chips</h4>
           <div style="overflow-x:auto;max-height:160px;margin-top:6px;">
             <table class="data-table" id="requests-table">
               <thead>
@@ -224,7 +193,7 @@
                 </tr>
               </thead>
               <tbody id="requests-tbody">
-                <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>
+                <tr><td colspan="4" style="text-align:center;color:var(--dim);padding:12px;">No active requests. Use the delegation form to send work.</td></tr>
               </tbody>
             </table>
           </div>
@@ -259,19 +228,19 @@
         <div class="card">
           <div class="card-header">
             <h2>Causal Vector Clock &amp; SEC State</h2>
-            <span style="font-size:0.75rem;color:var(--cyan-core);">Monotonic Lamport Clocks</span>
+            <span style="font-size:0.75rem;color:var(--signal);">Monotonic Lamport Clocks</span>
           </div>
-          <p style="font-size:0.82rem;color:var(--text-muted);">
+          <p style="font-size:0.82rem;color:var(--mut);">
             Guarantees Strong Eventual Consistency (SEC) across multi-agent concurrent writes without merge locks.
           </p>
-          <pre id="vector-clock-view" style="font-family:var(--font-mono);font-size:0.85rem;color:var(--cyan-core);background:rgba(0,0,0,0.35);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border-card);"></pre>
+          <pre id="vector-clock-view" style="font-family:var(--mono);font-size:0.85rem;color:var(--signal);background:#0a0b0e;padding:14px;border-radius:3px;border:1px solid var(--line);"></pre>
 
           <!-- Inline Symbol Mutator Form -->
-          <div style="background:rgba(12,17,30,0.7);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border-card);display:flex;flex-direction:column;gap:10px;margin-top:10px;">
-            <h4 style="font-size:0.85rem;color:var(--text-main);">Quick Register Mutation</h4>
+          <div style="background:#0a0b0e;padding:14px;border-radius:3px;border:1px solid var(--line);display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+            <h4 style="font-size:0.85rem;color:var(--txt);">Quick Register Mutation</h4>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <input type="text" id="quick-crdt-key" placeholder="Symbol key (e.g. src/api.ts:port)" style="padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;font-size:0.8rem;">
-              <input type="text" id="quick-crdt-val" placeholder="Value (e.g. 8080)" style="padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-card);border-radius:var(--radius-sm);color:#fff;font-size:0.8rem;">
+              <input type="text" id="quick-crdt-key" placeholder="Symbol key (e.g. src/api.ts:port)" style="padding:6px 10px;background:#0a0b0e;border:1px solid var(--line);border-radius:3px;color:var(--txt);font-size:0.8rem;">
+              <input type="text" id="quick-crdt-val" placeholder="Value (e.g. 8080)" style="padding:6px 10px;background:#0a0b0e;border:1px solid var(--line);border-radius:3px;color:var(--txt);font-size:0.8rem;">
             </div>
             <button class="btn-primary" id="btn-quick-commit-crdt" style="align-self:flex-end;">Commit CRDT Delta</button>
           </div>
@@ -286,7 +255,7 @@
           <h2 id="heading-macp">MACP Coordination Sessions</h2>
           <button class="btn-primary" id="btn-open-create-macp">+ New MACP Session</button>
         </div>
-        <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">
+        <p style="font-size:0.84rem;color:var(--mut);margin-top:-6px;">
           RFC-Grade Multi-Agent Consensus Protocol (MACP) bounded sessions for architectural decisions, breaking changes, and quorum approvals.
         </p>
         <div id="macp-sessions-container" style="display:flex;flex-direction:column;gap:14px;"></div>
@@ -303,10 +272,10 @@
             <button class="btn-primary" id="btn-open-append-dag">+ Append State Node</button>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(12,17,30,0.6);border-radius:var(--radius-sm);border:1px solid var(--border-card);font-family:var(--font-mono);font-size:0.82rem;">
-          <span style="color:var(--text-dim);">Root Hash:</span>
-          <span id="dag-root-hash" style="color:var(--cyan-core);font-weight:700;">Loading...</span>
-          <span id="dag-verify-status" style="margin-left:auto;color:var(--emerald-ok);font-size:0.75rem;">Verified</span>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0a0b0e;border-radius:3px;border:1px solid var(--line);font-family:var(--mono);font-size:0.82rem;">
+          <span style="color:var(--dim);">Root Hash:</span>
+          <span id="dag-root-hash" style="color:var(--signal);font-weight:700;">Loading...</span>
+          <span id="dag-verify-status" style="margin-left:auto;color:var(--ok);font-size:0.75rem;">Verified</span>
         </div>
         <div class="dag-timeline" id="dag-timeline-container"></div>
       </div>
@@ -329,14 +298,14 @@
           <button data-tool="rect" id="btn-tool-rect">▭ Architecture Block</button>
           <button data-tool="note" id="btn-tool-note">🗈 Sticky Note</button>
           <button data-tool="select" id="btn-tool-select">⇱ Select / Move</button>
-          <button id="btn-tool-delete" style="color:var(--rose-bad);border-color:rgba(244,63,94,0.3);">🗑 Delete Selected</button>
+          <button id="btn-tool-delete" style="color:var(--bad);border-color:var(--line);">🗑 Delete Selected</button>
 
           <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-            <span id="tldraw-status" role="status" style="font-size:0.75rem;color:var(--text-dim);">legacy board · hub-synced</span>
+            <span id="tldraw-status" role="status" style="font-size:0.75rem;color:var(--dim);">legacy board · hub-synced</span>
             <button class="btn-ghost" id="btn-board-tldraw-sync" style="display:none;">Sync to hub</button>
             <button class="btn-ghost" id="btn-board-tldraw-load" style="display:none;">Load from hub</button>
-            <span style="font-size:0.75rem;color:var(--text-dim);">Color:</span>
-            <select id="board-color" style="background:var(--bg-input);border:1px solid var(--border-card);color:var(--text-main);padding:4px 8px;border-radius:var(--radius-sm);font-size:0.78rem;">
+            <span style="font-size:0.75rem;color:var(--dim);">Color:</span>
+            <select id="board-color" style="background:#0a0b0e;border:1px solid var(--line);color:var(--txt);padding:4px 8px;border-radius:3px;font-size:0.78rem;">
               <option value="#00f2fe">Electric Cyan</option>
               <option value="#10b981">Emerald</option>
               <option value="#f59e0b">Amber</option>
@@ -368,16 +337,16 @@
             <div class="voice-peer-card">
               <div class="voice-avatar" id="local-voice-avatar">ME</div>
               <div style="font-weight:700;font-size:0.88rem;">Local User</div>
-              <div id="local-voice-status" style="font-size:0.74rem;color:var(--text-dim);">Microphone Idle</div>
+              <div id="local-voice-status" style="font-size:0.74rem;color:var(--dim);">Microphone Idle</div>
               <!-- Real Web Audio API VU meter -->
               <div class="vu-meter-bar">
                 <div class="vu-meter-fill" id="vu-meter-fill"></div>
               </div>
             </div>
             <div class="voice-peer-card">
-              <div class="voice-avatar" style="background:linear-gradient(135deg,var(--emerald-ok),var(--cyan-core));">AI</div>
+              <div class="voice-avatar" style="background:var(--line);">AI</div>
               <div style="font-weight:700;font-size:0.88rem;">Swarm Voice Lead</div>
-              <div style="font-size:0.74rem;color:var(--emerald-soft);">A2A Gateway Ready</div>
+              <div style="font-size:0.74rem;color:var(--ok);">A2A Gateway Ready</div>
               <div class="vu-meter-bar">
                 <div class="vu-meter-fill" style="width:0%;"></div>
               </div>
@@ -388,14 +357,14 @@
         <div class="card">
           <div class="card-header">
             <h2>P2P DataChannel Mesh</h2>
-            <span style="font-size:0.75rem;color:var(--cyan-core);">&lt; 5ms Direct Gossiping</span>
+            <span style="font-size:0.75rem;color:var(--signal);">&lt; 5ms Direct Gossiping</span>
           </div>
-          <div style="padding:10px;font-size:0.82rem;color:var(--text-muted);display:flex;flex-direction:column;gap:10px;">
+          <div style="padding:10px;font-size:0.82rem;color:var(--mut);display:flex;flex-direction:column;gap:10px;">
             <div>● Direct WebRTC DataChannels allow agents and human editors to exchange CRDT deltas without roundtrips to the central server.</div>
             <div>● Initial signaling coordinated via ephemeral mailbox (60s TTL).</div>
             <div>● Zero coordinator bottlenecks during rapid concurrent code generation.</div>
           </div>
-          <div style="background:#03060c;border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:12px;font-family:var(--font-mono);font-size:0.78rem;color:var(--cyan-soft);max-height:160px;overflow-y:auto;" id="p2p-log">
+          <div style="background:#03060c;border:1px solid var(--line);border-radius:3px;padding:12px;font-family:var(--mono);font-size:0.78rem;color:var(--signal);max-height:160px;overflow-y:auto;" id="p2p-log">
             [P2P Mesh] DataChannel subsystem ready for peer signaling.
           </div>
         </div>
@@ -410,7 +379,7 @@
             <h2 id="heading-health">System Observability &amp; Guard Metrics</h2>
             <button class="btn-ghost" id="btn-refresh-metrics">↻ Refresh</button>
           </div>
-          <div style="font-family:var(--font-mono);font-size:0.82rem;background:rgba(0,0,0,0.35);padding:14px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:8px;" id="metrics-display">
+          <div style="font-family:var(--mono);font-size:0.82rem;background:#0a0b0e;padding:14px;border-radius:3px;display:flex;flex-direction:column;gap:8px;" id="metrics-display">
             <div>mesh_uptime_seconds: Loading...</div>
             <div>mesh_sqlite_wal_events: Loading...</div>
             <div>mesh_rate_limit_trips_total: 0</div>
@@ -423,7 +392,7 @@
             <h2>Live Hub SSE Event Stream</h2>
             <button class="btn-ghost" id="btn-clear-events">Clear Log</button>
           </div>
-          <pre style="background:#03060c;border:1px solid var(--border-card);border-radius:var(--radius-sm);padding:14px;font-family:var(--font-mono);font-size:0.78rem;color:#e2e8f0;max-height:260px;overflow-y:auto;" id="sse-events-console">
+          <pre style="background:#03060c;border:1px solid var(--line);border-radius:3px;padding:14px;font-family:var(--mono);font-size:0.78rem;color:#e2e8f0;max-height:260px;overflow-y:auto;" id="sse-events-console">
 Connecting to /events stream...
           </pre>
         </div>
@@ -443,18 +412,18 @@ Connecting to /events stream...
       <!-- Hub Host URL -->
       <div class="provider-config-box">
         <div class="provider-config-header">
-          <strong style="color:var(--cyan-soft);">AgentMesh Hub Daemon URL</strong>
+          <strong style="color:var(--signal);">AgentMesh Hub Daemon URL</strong>
         </div>
         <div class="form-group" style="margin-bottom:0;">
           <input type="text" id="setting-hub-url" placeholder="http://127.0.0.1:7777" value="http://127.0.0.1:7777">
         </div>
-        <p style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 0 0;">Run <code>MESH_HOST=0.0.0.0 node src/hub.mjs</code> on Laptop 1 for LAN access.</p>
+        <p style="font-size:0.75rem;color:var(--dim);margin:4px 0 0 0;">Run <code>MESH_HOST=0.0.0.0 node src/hub.mjs</code> on Laptop 1 for LAN access.</p>
       </div>
 
       <!-- Bearer Token Auth -->
       <div class="provider-config-box">
         <div class="provider-config-header">
-          <strong style="color:var(--amber-soft);">Capability Bearer Token (Optional)</strong>
+          <strong style="color:var(--warn);">Capability Bearer Token (Optional)</strong>
         </div>
         <div class="form-group" style="margin-bottom:0;">
           <input type="password" id="setting-mesh-token" placeholder="Leave empty for open local development">
@@ -464,9 +433,9 @@ Connecting to /events stream...
       <!-- Quick Connect Snippets -->
       <div class="provider-config-box">
         <div class="provider-config-header">
-          <strong style="color:var(--emerald-soft);">Laptop 2 Join Command</strong>
+          <strong style="color:var(--ok);">Laptop 2 Join Command</strong>
         </div>
-        <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan-core);display:block;padding:6px;background:rgba(0,0,0,0.4);border-radius:4px;">./bin/mesh-join http://&lt;LAPTOP_1_IP&gt;:7777</code>
+        <code style="font-family:var(--mono);font-size:0.75rem;color:var(--signal);display:block;padding:6px;background:#0a0b0e;border-radius:4px;">./bin/mesh-join http://&lt;LAPTOP_1_IP&gt;:7777</code>
       </div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
@@ -637,7 +606,7 @@ Connecting to /events stream...
 
   <!-- Footer -->
   <footer class="app-footer" id="main-footer">
-    <div>AgentMesh v1.2.0 — Universal multi-agent coordination platform across all AI providers. MIT License.</div>
+    <div>AGENTMESH · STRIP BOARD 01 · MIT</div>
     <div style="display:flex;gap:18px;">
       <a href="/a2a/agent-card.json" target="_blank" rel="noreferrer">A2A Standard Agent Card</a>
       <a href="/metrics" target="_blank" rel="noreferrer">OpenTelemetry Metrics</a>
