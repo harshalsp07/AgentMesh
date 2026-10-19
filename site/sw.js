@@ -1,10 +1,15 @@
 // site/sw.js — Offline Service Worker for AgentMesh
-const CACHE_NAME = 'agentmesh-v1.2.0';
+const CACHE_NAME = 'agentmesh-v1.2.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/landing.html',
+  '/docs.html',
+  '/playground.html',
+  '/blog.html',
   '/style.css',
   '/app.js',
+  '/vendor.mjs',
   '/manifest.webmanifest'
 ];
 

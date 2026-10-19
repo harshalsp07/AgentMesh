@@ -2,9 +2,9 @@
 // (blobs + trees + commits) in .mesh/vcs, so `git fsck`, `git bundle`, bundles and
 // host-side tools all work. Working copies stay dir-copies (overlayfs/worktrees are
 // the scale-out option); the snapshot history itself is content-addressed and deduped.
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const git = (gitDir, ...args) => execFileSync('git', [`--git-dir=${gitDir}`, ...args], { stdio: 'pipe', timeout: 60000 }).toString().trim();
@@ -53,7 +53,7 @@ export function gitSnapshot(root, lane, snapId, { message = '' } = {}) {
       const lanePrefix = lanePath + '/';
       for (const f of files) {
         const blob = execFileSync('git', ['--git-dir=' + d, 'hash-object', '-w', f], { stdio: 'pipe', timeout: 60000, env }).toString().trim();
-        const rel = f.startsWith(lanePrefix) ? f.slice(lanePrefix.length) : f;
+        const rel = (f.startsWith(lanePrefix) ? f.slice(lanePrefix.length) : relative(lanePath, f)).replaceAll('\\', '/'); // git index paths are posix on every OS
         execFileSync('git', ['--git-dir=' + d, 'update-index', '--add', '--cacheinfo', `100644,${blob},${rel}`], { stdio: 'pipe', timeout: 60000, env });
       }
       tree = execFileSync('git', ['--git-dir=' + d, 'write-tree'], { stdio: 'pipe', timeout: 30000, env }).toString().trim();
@@ -70,14 +70,31 @@ export function gitSnapshot(root, lane, snapId, { message = '' } = {}) {
 }
 export function gitRestore(root, lane, snapId) {
   const d = vcsDir(root);
+  // ref guard stays first (fail closed with a structured reason)
+  let treeSha;
+  try { treeSha = git(d, 'rev-parse', '--verify', `${refOf(lane, snapId)}^{tree}`); }
+  catch { return { ok: false, error: `unknown snapshot ref ${lane}/${snapId}` }; }
   const lanePath = join(root, 'lanes', lane);
-  const archive = spawnSync('git', ['--git-dir=' + d, 'archive', refOf(lane, snapId)], { encoding: 'buffer', timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
-  if (archive.status !== 0) return { ok: false, error: `unknown snapshot ref ${lane}/${snapId}` };
-  rmSync(lanePath, { recursive: true, force: true });
-  mkdirSync(lanePath, { recursive: true });
-  const untar = spawnSync('tar', ['-x', '-C', lanePath], { input: archive.stdout, timeout: 60000 });
-  if (untar.status !== 0) return { ok: false, error: 'tar extract failed' };
-  return { ok: true, backend: 'git', ref: refOf(lane, snapId) };
+  try {
+    // materialize the tree with git plumbing only — no tar/pipes/checkout-index,
+    // so the path is identical on Windows and Unix. Entries come NUL-separated.
+    const raw = git(d, 'ls-tree', '-r', '-z', '-t', treeSha);
+    rmSync(lanePath, { recursive: true, force: true });
+    mkdirSync(lanePath, { recursive: true });
+    for (const ent of raw.split('\0')) {
+      if (!ent) continue;
+      const meta = ent.slice(0, ent.indexOf('\t'));
+      const rel = ent.slice(ent.indexOf('\t') + 1).replaceAll('\\', '/');
+      const [mode, type, sha] = meta.split(' ');
+      if (type !== 'blob' || mode.startsWith('160')) continue; // blobs only: trees are covered recursively
+      const dest = join(lanePath, ...rel.split('/'));
+      mkdirSync(join(dest, '..'), { recursive: true });
+      writeFileSync(dest, execFileSync('git', [`--git-dir=${d}`, 'cat-file', 'blob', sha], { stdio: 'pipe', timeout: 60000, maxBuffer: 64 * 1024 * 1024 }));
+    }
+    return { ok: true, backend: 'git', ref: refOf(lane, snapId) };
+  } catch (e) {
+    return { ok: false, error: String(e.message).slice(0, 300) };
+  }
 }
 export const gitRestoreSafe = gitRestore;
 export const gitLog = (root, lane, n = 20) => {

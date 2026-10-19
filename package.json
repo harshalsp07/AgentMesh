@@ -34,6 +34,7 @@
     "demo:collab": "node demo-collab.mjs",
     "demo:share": "node demo-share.mjs",
     "demo:all": "node demo.mjs && node demo-phase1.mjs && node demo-phase2.mjs && node demo-phase3.mjs && node demo-collab.mjs && node demo-share.mjs",
+    "demo:bot": "node demo-bot.mjs",
     "hub": "node src/hub.mjs",
     "site": "node src/hub.mjs",
     "build:site": "node scripts/publish-check.mjs",
@@ -41,7 +42,7 @@
     "mesh": "node src/mesh.mjs",
     "tui": "node src/tui.mjs",
     "load": "node scripts/load.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-force-exit test/*.test.mjs",
     "doctor": "node scripts/doctor.mjs"
   },
   "license": "MIT"

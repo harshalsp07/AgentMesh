@@ -3,7 +3,7 @@
 //  freeze checkpoint restore eject | propose approve drain trunk | verify T0/T1/T2
 //  contract audit policy dep run hook drill bundle recover fsck canvas context
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const HERE_SRC = dirname(fileURLToPath(import.meta.url));
 import { createLane, snapshotLane, laneDiff, undoLane, rewindLane, revertIntent, freeze, checkpoint, restoreCheckpoint, eject, opsLog, restoreFromVcs } from './lanes.mjs';
@@ -51,13 +51,13 @@ async function main() {
       if (!ov.collisions.length) console.log('  no predicted collisions');
       return;
     }
-    case 'doctor': {
-      const checks = {
-        node: process.version, hub: await hubGet('/health').then((r) => r.ok).catch(() => false),
-        driver: detectDriver(), ports: { hub: 7777, trunkPreview: 4100 }, policy: existsSync(`${ROOT}/policy.yaml`),
-        git: (() => { try { const { execFileSync } = awaitImport(); return true; } catch { return false; } })(),
-      };
-      console.log(JSON.stringify(checks, null, 2));
+    case 'build': {
+      const actor = opt('actor', process.env.MESH_ACTOR || 'pm');
+      const timeout = +(opt('timeout', '60000'));
+      // report self as done? pm is orchestrator; mark all agents via build-status first? Just gate.
+      const r = await fetch(`${HUB}/api/build-gate`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor, timeout }) }).then((x) => x.json()).catch((e) => ({ ok: false, error: `hub unreachable: ${e.message}` }));
+      console.log(JSON.stringify(r, null, 2));
+      if (r.abort) process.exitCode = 1;
       return;
     }
     case 'up': {
@@ -241,14 +241,66 @@ async function main() {
       return;
     }
     case 'voice': console.log(JSON.stringify({ note: 'voice is browser P2P; hub only signals', peers: 'see canvas Voice tab or /api/overview' }, null, 2)); return;
+    case 'doctor': {
+      const { doctor } = await import(new URL('../scripts/doctor.mjs', import.meta.url));
+      console.log(JSON.stringify(await doctor({ fix: args.includes('--fix') }), null, 2));
+      return;
+    }
+    case 'init': {
+      // P0: TTFC. mesh init <any-repo> [--actor n] [--hub url] [--force]
+      const { init } = await import('./init.mjs');
+      const target = args[1] && !args[1].startsWith('--') ? resolve(args[1]) : process.cwd();
+      console.log(JSON.stringify(init(target, { hub: HUB, actor: opt('actor'), force: !!opt('force') }), null, 2));
+      return;
+    }
+    case 'tasks': {
+      const { listTasks, createTask, claimTask, setTask, taskStats } = await import('./tasks.mjs');
+      const [sub, a1, a2] = args.slice(1);
+      if (sub === 'create') console.log(JSON.stringify(createTask(ROOT, { title: a1, by: opt('by', 'human'), paths: (opt('paths') || '').split(',').filter(Boolean), deps: (opt('deps') || '').split(',').filter(Boolean), note: (opt('note') || '').toString(), repo: (opt('repo') || '').toString() }), null, 2));
+      else if (sub === 'claim') console.log(JSON.stringify(claimTask(ROOT, { id: a1, actor: opt('actor', 'human'), wip: +(opt('wip') || 2) }), null, 2));
+      else if (sub === 'set') console.log(JSON.stringify(setTask(ROOT, { id: a1, actor: opt('actor', 'human'), status: a2, note: (opt('note') || '').toString() }), null, 2));
+      else console.log(JSON.stringify({ ok: true, stats: taskStats(ROOT), tasks: listTasks(ROOT, { owner: (opt('owner') || '').toString(), status: sub && !sub.startsWith('--') ? sub : (opt('status') || '').toString(), repo: (opt('repo') || '').toString() }) }, null, 2));
+      return;
+    }
+    case 'bot': {
+      const { runBot, botStatus } = await import('./bot.mjs');
+      if ((args[1] || '') === 'status') { console.log(JSON.stringify(botStatus(ROOT), null, 2)); return; }
+      const goal = (opt('goal') || args.slice(1).filter((a) => !a.startsWith('--')).join(' ')).trim();
+      if (!goal) { console.error('usage: mesh bot run --goal "<text>" [--dry] [--live (ops-gated)] [--tasks "a|b|c"]'); process.exitCode = 1; return; }
+      const tasksInput = opt('tasks') ? String(opt('tasks')).split('|').filter(Boolean).map((t) => ({ title: t, paths: String(opt('paths') || '').split(',').filter(Boolean) })) : null;
+      const r = await runBot(ROOT, { goal, dry: args.includes('--live') ? process.env.MESH_BOT_LIVE === '1' : true, tasksInput, budgetCoins: +(opt('coins') || 20), budgetMin: +(opt('minutes') || 10) });
+      console.log(JSON.stringify({ ok: r.ok, run: { id: r.run.id, status: r.run.status, budget: r.run.budget }, phases: r.run.phases, tasks: r.tasks, harness: r.harness, error: r.error || null }, null, 2));
+      return;
+    }
+    case 'memory': {
+      const { memoryGet, memorySet } = await import('./bot.mjs');
+      if (args[1] === 'set') console.log(JSON.stringify(memorySet(ROOT, opt('actor', 'human'), args.slice(2).join(' ') || String(opt('text') || '')), null, 2));
+      else console.log(memoryGet(ROOT, args[1] || '') ?? '(mesh memory is empty — `mesh memory set <text>` starts it)');
+      return;
+    }
+    case 'audit': {
+      if (args[1] === 'export') {
+        const { exportAudit } = await import('./audit.mjs');
+        const { openDb, dbEvents } = await import('./db.mjs');
+        const rows = dbEvents(openDb(ROOT));
+        const out = opt('out') || (args[2] && !String(args[2]).startsWith('--') ? args[2] : null);
+        const bnd = exportAudit(rows, { from: +(opt('from') || 0), to: +(opt('to') || Date.now()), out });
+        console.log(JSON.stringify({ ok: bnd.ok, merkleRoot: bnd.merkleRoot, events: bnd.events.length, out: bnd.out }, null, 2));
+        return;
+      }
+      const path = args[1] || '';
+      const ops = opsLog(ROOT).filter((o) => !path || JSON.stringify(o).includes(path));
+      console.log(JSON.stringify(ops.slice(-20), null, 2)); return;
+    }
     default:
       console.log(`mesh — commands:
  up|keygen|token <actor> | status doctor overview|board|voice | lane snapshot diff undo rewind revert-intent freeze checkpoint restore eject
  propose approve drain trunk | verify <0|1|2> <lane> | contract <extract|propose|land|ghost|gate|add-consumer|xverify> | vcs <status|log|fsck|bundle|restore>
- policy audit forecast graph dep run hook context drill bundle fsck recover declare
+ policy audit [export --out file] forecast graph dep run hook context drill bundle fsck recover declare
  roster|request|pin|decide|digest|standup|capsule|pair|health|brief|quiet|wip
+ tasks <list|pending|create|claim|set> | bot run --goal "<text>" [--dry|--live] | bot status | memory [get <key>|set <text>]
+ init [target-repo] [--actor n] [--force]   <- install the mesh into any existing repo
  run --lane <actor> -- <cmd>...   (L4 wrap: shims enforce policy; MESH_APPROVED=1 allows approval-gated)
-
 global: --root <dir> (default .mesh) --token <capability> (or MESH_TOKEN)`);
   }
 }

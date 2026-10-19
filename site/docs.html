@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentMesh — Docs</title>
+  <meta name="description" content="AgentMesh documentation: quickstart, concepts, harness MCP recipes, HTTP API, security model, troubleshooting.">
+  <meta name="theme-color" content="#0c0d10">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AgentMesh — Docs">
+  <meta property="og:description" content="Two laptops, one repo, no overwrites. The AgentMesh field manual.">
+  <link rel="stylesheet" href="./style.css">
+  <style>
+    /* ---- docs page local styles (site/style.css supplies tokens + components) ---- */
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+    .doc-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 980px) {
+      .doc-shell { grid-template-columns: 1fr; }
+      .docs-side { position: static; }
+      nav.nav-tabs a { display: none; }
+      nav.nav-tabs a.active { display: block; }
+    }
+
+    /* header nav: reuse switchboard keys for links */
+    nav.nav-tabs a {
+      display: block; text-decoration: none; background: var(--panel); color: var(--mut);
+      border: 1px solid var(--line); border-bottom-width: 3px; border-radius: var(--r);
+      padding: 8px 12px 6px; font-family: var(--mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+    }
+    nav.nav-tabs a .tabnum { display: block; font-size: 0.58rem; color: var(--dim); letter-spacing: 0.2em; }
+    nav.nav-tabs a:hover { color: var(--txt); border-color: var(--mut); }
+    nav.nav-tabs a.active { background: var(--paper); border-color: var(--paper); border-bottom-color: var(--signal); color: var(--paper-ink); }
+    nav.nav-tabs a.active .tabnum { color: var(--signal-deep); }
+
+    /* ---- sticky sidebar ---- */
+    .docs-side { position: sticky; top: 76px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; }
+    .side-toggle summary {
+      list-style: none; cursor: pointer; font-family: var(--mono); font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.22em; color: var(--dim); text-transform: uppercase; padding: 4px 6px;
+    }
+    .side-toggle summary::-webkit-details-marker { display: none; }
+    .side-toggle summary::after { content: "+"; float: right; color: var(--signal); }
+    .side-toggle[open] summary::after { content: "–"; }
+    .side-nav { display: flex; flex-direction: column; margin-top: 8px; }
+    .side-nav a {
+      font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; color: var(--mut);
+      text-decoration: none; padding: 6px 8px; margin: 2px 0; border-left: 2px solid transparent; border-radius: 0 var(--r) var(--r) 0;
+    }
+    .side-nav a:hover { color: var(--txt); background: var(--panel-2); border-left-color: var(--signal); }
+    .side-nav a.active { color: var(--txt); border-left-color: var(--signal); }
+    .side-nav a.sub { font-size: 0.62rem; color: var(--dim); padding-left: 20px; }
+    .side-kick { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.2em; color: var(--dim); padding: 8px 6px 2px; border-top: 1px solid var(--line-soft); margin-top: 8px; }
+
+    /* ---- sections as cards, :target fires the signal edge ---- */
+    .doc-sec { margin-bottom: 16px; scroll-margin-top: 92px; }
+    .doc-sec:target { border-color: var(--signal); box-shadow: inset 3px 0 0 var(--signal); }
+    .card-header a.seclink { color: var(--dim); text-decoration: none; }
+    .card-header a.seclink:hover { color: var(--signal); }
+
+    .doc-sec h3 { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--txt); margin: 20px 0 6px; }
+    .doc-sec h3::before { content: "▸ "; color: var(--signal); }
+    .doc-sec p { font-size: 0.82rem; color: var(--mut); margin: 6px 0 8px; line-height: 1.55; }
+    .doc-sec p b, .doc-sec li b, .doc-sec td b { color: var(--txt); }
+    .doc-sec ul { margin: 4px 0 10px; padding-left: 18px; color: var(--mut); font-size: 0.82rem; }
+    .doc-sec li { margin: 4px 0; line-height: 1.5; }
+    .doc-sec code { font-size: 0.74rem; color: var(--txt); background: #0a0b0e; border: 1px solid var(--line-soft); border-radius: 2px; padding: 1px 5px; }
+    table.data-table code { background: transparent; border: 0; padding: 0; }
+
+    /* ---- code blocks ---- */
+    pre.doc-code {
+      background: #0a0b0e; border: 1px solid var(--line); border-radius: var(--r);
+      padding: 11px 13px; overflow-x: auto; margin: 8px 0 12px; line-height: 1.6;
+    }
+    .doc-code code { font-size: 0.75rem; color: #d8d2c2; }
+    .doc-code .cm { color: var(--dim); }
+    .doc-code .hl { color: var(--signal); font-weight: 700; }
+    .doc-code .ld { color: var(--ok); }
+
+    /* ---- callout boxes (.note green / .warn orange) ---- */
+    .note {
+      display: flex; gap: 10px; align-items: flex-start; background: var(--ink); border: 1px solid var(--line);
+      border-left: 4px solid var(--ok); border-radius: var(--r); padding: 10px 12px; margin: 10px 0; font-size: 0.8rem; color: var(--mut);
+    }
+    .warn { border-left-color: var(--warn); }
+    .note .co-k { font-family: var(--mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; color: var(--ok); margin-top: 3px; white-space: nowrap; text-transform: uppercase; }
+    .warn .co-k { color: var(--warn); }
+
+    /* ---- quickstart step cards ---- */
+    .step-card { background: var(--ink); border: 1px solid var(--line); border-top: 3px solid var(--ok); border-radius: var(--r); padding: 12px 14px; }
+    .step-tag { font-family: var(--mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; color: var(--ok); text-transform: uppercase; }
+    .step-card p { margin: 4px 0 8px; font-size: 0.8rem; color: var(--mut); }
+
+    .tbl-wrap { overflow-x: auto; margin: 10px 0; }
+    table.data-table th, table.data-table td { vertical-align: top; }
+    table.data-table td.meth { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; }
+    .meth.get { color: var(--ok); }
+    .meth.post { color: var(--signal); }
+  </style>
+</head>
+<body>
+
+  <!-- Header: same equipment plate / switchboard as the strip board -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="plate">
+        <a href="./index.html" class="logo-badge">
+          <div class="logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>AgentMesh</span>
+        </a>
+        <div class="plate-sub">FIELD MANUAL · 02</div>
+      </div>
+      <span class="status-pill live"><span class="status-dot"></span> <b>DOCS v1.2.0</b></span>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Site navigation">
+      <a href="./index.html"><span class="tabnum">01</span>BOARD</a>
+      <a href="./docs.html" class="active"><span class="tabnum">02</span>DOCS</a>
+      <a href="./landing.html"><span class="tabnum">03</span>LANDING</a>
+      <a href="./playground.html"><span class="tabnum">04</span>PLAYGROUND</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn-ghost" href="https://github.com/harshalsp07/AgentMesh" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <a class="btn-primary" href="#quickstart">Get Started</a>
+    </div>
+  </header>
+
+  <main class="app-main" style="max-width:1160px;">
+
+    <!-- Room readout -->
+    <section class="readout" aria-label="Docs build info">
+      <span class="ro-seg">BUILD <b class="val">v1.2.0 · MIT</b></span>
+      <span class="ro-seg">HUB <b class="val">:7777 · SSE + MCP</b></span>
+      <span class="ro-seg hot">TESTS <b class="val">63 ✓ · 32 suites</b></span>
+    </section>
+
+    <div class="doc-shell">
+
+      <!-- ============ Sidebar ============ -->
+      <aside class="docs-side">
+        <details class="side-toggle" id="side-nav" open>
+          <summary>On this page</summary>
+          <nav class="side-nav" aria-label="Docs sections">
+            <a href="#quickstart">Quickstart</a>
+            <a href="#concepts">Concepts</a>
+            <a href="#tasks" class="sub">Tasks board</a>
+            <a href="#conductor" class="sub">Conductor bot</a>
+            <a href="#memory" class="sub">Repo memory</a>
+            <a href="#services" class="sub">Ports &amp; .env</a>
+            <a href="#recipes">Recipes · MCP by harness</a>
+            <a href="#api">HTTP API</a>
+            <a href="#security">Security model</a>
+            <a href="#troubleshooting">Troubleshooting</a>
+          </nav>
+          <div class="side-kick">FURTHER READING</div>
+          <nav class="side-nav">
+            <a href="../docs/SECURITY.md">docs/SECURITY.md ↗</a>
+            <a href="../docs/RUNBOOK.md">docs/RUNBOOK.md ↗</a>
+            <a href="../README.md">README.md ↗</a>
+          </nav>
+        </details>
+      </aside>
+
+      <!-- ============ Content column ============ -->
+      <div class="doc-col">
+
+        <!-- 1. QUICKSTART -->
+        <section class="card doc-sec" id="quickstart" aria-labelledby="h-quickstart">
+          <div class="card-header">
+            <h2 id="h-quickstart">Quickstart — two laptops, under 2 minutes</h2>
+            <a class="seclink kbd" href="#quickstart">#quickstart</a>
+          </div>
+          <p>Two machines edit the exact same repository in real time. One hosts the hub, the other joins over LAN, and both IDEs get mesh tools through MCP.</p>
+
+          <div class="grid-2">
+            <div class="step-card">
+              <span class="step-tag">Step 01 · Laptop A — host</span>
+              <p>Install and boot the coordination hub (all network interfaces, so Laptop B can reach it):</p>
+              <pre class="doc-code"><code><span class="cm"># any fresh shell</span>
+<span class="ld">npx @harshalsp/agentmesh up</span>       <span class="cm"># hub on :7777 + room key printed</span>
+<span class="cm"># or, from a clone, LAN mode</span>
+<span class="hl">MESH_HOST=0.0.0.0 node src/hub.mjs</span>
+<span class="cm"># note Laptop A's LAN IP, e.g. 192.168.1.50</span></code></pre>
+            </div>
+
+            <div class="step-card">
+              <span class="step-tag">Step 02 · Laptop B — join</span>
+              <p>Zero-config join writes the local MCP config and registers presence on the hub:</p>
+              <pre class="doc-code"><code><span class="cm"># from Laptop B (repo cloned anywhere)</span>
+<span class="hl">./bin/mesh-join http://&lt;LAPTOP-A-IP&gt;:7777</span>
+<span class="cm"># ✔ hub online (seq, epoch) · ✔ presence registered · ✔ .cursor/mcp.json written</span></code></pre>
+            </div>
+          </div>
+
+          <div class="step-card" style="margin-top:14px;">
+            <span class="step-tag">Step 03 · Use it inside any IDE</span>
+            <p>Reopen your IDE chat and the <code>mesh_*</code> tools appear via MCP — declare before editing, delegate to the other laptop, vote in quorum sessions. Watch it live at <code>http://&lt;LAPTOP-A-IP&gt;:7777</code> (canvas at <code>/canvas</code>, event stream at <code>/events</code>).</p>
+            <pre class="doc-code"><code><span class="cm"># sanity check on either laptop</span>
+node bin/mesh doctor   <span class="cm"># ports · node versions · git · driver · board</span></code></pre>
+          </div>
+
+          <div class="note">
+            <span class="co-k">NOTE</span>
+            <span>Want AgentMesh in an <b>existing repo</b> instead of a clone? Run <code>mesh init &lt;your-repo&gt;</code>: it installs AgentMesh config into the target repo — writes <code>.agents/mcp_config.json</code> and <code>.agents/rules/agentmesh.md</code>, adds <code>.mesh/</code> to <code>.gitignore</code>, and detects <code>.cursor</code> / <code>.mcp.json</code> / <code>.windsurf</code> configs, adding an <code>agentmesh</code> server entry to each. The AgentMesh dir stays a plain dependency — the hub clones nothing.</span>
+          </div>
+        </section>
+
+        <!-- 2. CONCEPTS -->
+        <section class="card doc-sec" id="concepts" aria-labelledby="h-concepts">
+          <div class="card-header">
+            <h2 id="h-concepts">Concepts</h2>
+            <a class="seclink kbd" href="#concepts">#concepts</a>
+          </div>
+          <p>Nine primitives make multi-agent work safe; everything is a view over one event-sourced core (<code>.mesh/</code> SQLite WAL log).</p>
+
+          <h3>Lane</h3>
+          <p>A copy-on-write virtual workspace per agent, layered above Git: Agent A never edits the checkout Agent B stands in; each actor drives its own lane <code>lane/&lt;actor&gt;</code> while Git stays the shared source of truth.</p>
+          <pre class="doc-code"><code>node bin/mesh lane <span class="hl">antigravity-ui</span>
+node bin/mesh diff antigravity-ui</code></pre>
+
+          <h3>Intent</h3>
+          <p>Intent-before-edit: an agent declares what it is <em>about</em> to touch — paths, symbols, contract effect — before writing code. The hub computes overlaps in milliseconds and warns both sides while the change is still cheap.</p>
+          <pre class="doc-code"><code>mesh_declare_intent({
+  goal: <span class="ld">"Redesign navbar"</span>,
+  paths: [<span class="ld">"site/**"</span>],
+  effect: <span class="ld">"additive"</span>              <span class="cm">// none | additive | breaking</span>
+})</code></pre>
+
+          <h3>Lease — soft vs hard</h3>
+          <p>Every declared intent carries a lease with an AST collision forecast:</p>
+          <ul>
+            <li><b>Soft lease</b> — an overlap with a neighbor's scope raises a non-blocking <code>OVERLAP</code> warning on both boards; humans or MACP decide who proceeds.</li>
+            <li><b>Hard lease</b> — an exclusive write barrier; an overlapping write is refused with <b><code>409</code></b> <em>before</em> any code is touched. Leases sweep automatically: 10&nbsp;s sweeper, 15&nbsp;s silence flags an actor <code>away</code>.</li>
+          </ul>
+
+          <h3>Contract — proposal → stable → land</h3>
+          <p>API shapes observed across lanes (routes, params, signatures) become contract nodes with a lifecycle: <b>proposed</b> → diffed against <b>stable</b> → <b>land</b> only after quorum. Ghost clients are detected, deletions are gated, and drift reaches consumers as a tier-1 <code>BREAKING</code> notice on their next pull.</p>
+
+          <h3>MACP — the 5-mode kernel</h3>
+          <p>Multi-Agent Coordination Protocol: bounded RFC-grade sessions between agents — never a prompt, always a protocol:</p>
+          <ul>
+            <li><b>decision</b> — weighted voting with binding resolution.</li>
+            <li><b>proposal</b> — 3-round negotiation ladder: scope partitioning → temporal sequencing → human arbitration.</li>
+            <li><b>quorum</b> — strict threshold gate for schema migrations and contract landings.</li>
+            <li><b>task</b> — formal bounded work delegation.</li>
+            <li><b>handoff</b> — capsule state transfer when an agent leaves mid-work.</li>
+          </ul>
+          <pre class="doc-code"><code>mesh_propose_contract(title: <span class="ld">"Adopt Contract v3 schema"</span>,
+  mode: <span class="ld">"quorum"</span>, participants: [<span class="ld">"antigravity-ui"</span>, <span class="ld">"codex-backend"</span>])
+mesh_vote(id, vote: <span class="ld">"yes"</span>, weight, rationale)   <span class="cm"># ×2 = quorum met</span></code></pre>
+
+          <h3>Integration queue + trunk CAS</h3>
+          <p>Nothing merges to <code>main</code> on vibes. Changesets verify against the exact <code>base_hash + change_hash</code> they were built from: <b>T0</b> fast gates — syntax, secret scan, boundary policy (&lt;150&nbsp;ms), <b>T1</b> <code>npm test</code>, <b>T2</b> cross-lane contracts. Only then does a compare-and-swap advance the trunk head; a stale base is quarantined, retried (×3), or bisected.</p>
+
+          <h3>MeshVCS — snapshots, undo, rewind</h3>
+          <p>Every turn of an actor is snapshotted immutably, then undone or rewound without touching shared history — the other lanes never feel it.</p>
+          <pre class="doc-code"><code>node bin/mesh snapshot codex-backend <span class="ld">"pre-refactor"</span>
+node bin/mesh undo codex-backend               <span class="cm"># drop the last turn</span>
+node bin/mesh rewind codex-backend <span class="hl">--minutes 15</span></code></pre>
+
+          <h3>Semantic CRDT — Lamport / LWW</h3>
+          <p>AST symbols, config keys and contract nodes live in a delta-state CRDT on a Lamport vector clock: commutative last-write-wins with actor tie-breaking, so N laptops converge without locks. Only the minimal delta travels the wire; a signature change in one lane reaches every other lane in seconds.</p>
+          <pre class="doc-code"><code>mesh_crdt_set(key: <span class="ld">"src/api.ts:port"</span>, value: <span class="ld">"8080"</span>)
+mesh_symbols(<span class="ld">"src/auth.mjs"</span>)</code></pre>
+
+          <h3>Fact sheets — bounded context</h3>
+          <p>Every agent reads the mesh through a fact sheet that is deliberately bounded: 3200-char sheet, 1200-char deltas, 50-message inbox cap, hop limit 3. Context is scoped on purpose — no one agents from a 200k-token kitchen dump, which is both a token budget and a prompt-injection surface reduction.</p>
+        </section>
+
+        <!-- tasks board -->
+        <section class="card doc-sec" id="tasks" aria-labelledby="h-tasks">
+          <div class="card-header">
+            <h2 id="h-tasks">Tasks — the shared task board</h2>
+            <a class="seclink kbd" href="#tasks">#tasks</a>
+          </div>
+          <p>Cross-vendor kanban at the event-log layer: a task is a mesh object. <b>Atomic claims</b> — one event, reduced single-threaded by the hub, so two agents racing for <code>task-7</code> yields exactly one winner. Tasks carry <b>path hints</b> (collision-aware claiming), <b>dependencies</b> (with cycle detection) and <b>WIP limits</b>. Every transition lands in the log; queryable at <code>GET /api/tasks</code>, claimable via MCP:</p>
+          <pre class="doc-code"><code>mesh_task_list(status: <span class="ld">"pending"</span>)              <span class="cm"># pick up work</span>
+mesh_task_claim(id: <span class="ld">"task-7"</span>)                  <span class="cm"># atomic; loser gets denied</span>
+mesh_task_set(id: <span class="ld">"task-7"</span>, status: <span class="ld">"done"</span>)    <span class="cm"># unblocks dependents</span></code></pre>
+        </section>
+
+        <!-- conductor -->
+        <section class="card doc-sec" id="conductor" aria-labelledby="h-conductor">
+          <div class="card-header">
+            <h2 id="h-conductor">Conductor — the mesh's own bot</h2>
+            <a class="seclink kbd" href="#conductor">#conductor</a>
+          </div>
+          <p>A mesh-native bot bundled with the system (<code>mesh bot</code>). Not a model wrapper pretending to run the show — a <b>role lord</b> harnesses drive under enforced protocol. One process, six personalities selected per task:</p>
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>Role</th><th>What it does</th><th>Mesh powers</th></tr></thead>
+              <tbody>
+                <tr><td><b>Scout</b></td><td>Walks the repo, maps modules + contract graph before anyone asks</td><td><code>mesh_declare_intent</code> (read-only)</td></tr>
+                <tr><td><b>Dispatcher</b></td><td>Splits a goal into scopes with overlap estimates; opens lanes and tasks</td><td>intents, <code>/api/tasks</code></td></tr>
+                <tr><td><b>Referee</b></td><td>Watches collisions, drafts negotiation ladders (optionally auto-arbitrates)</td><td>MACP proposal mode, pins</td></tr>
+                <tr><td><b>Reviewer</b></td><td>Fresh-context review of every landed changeset + drift alerts</td><td><code>mesh_pin</code>, T2 hooks</td></tr>
+                <tr><td><b>Shepherd</b></td><td>Newcomer briefs, standup digests, handoff capsules</td><td><code>mesh brief</code>, <code>digest</code>, <code>capsule</code></td></tr>
+                <tr><td><b>Keeper</b></td><td>Repo memory: conventions that worked, "how this repo behaves"</td><td><code>mesh memory</code> namespace</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><b>Budgeted autonomy:</b> every run declares token/coin plus wall-clock budget up front ("will cost ≈ $0.4 · 8 tasks"), enforced by policy, capped hard. Rehearse before you spend:</p>
+          <pre class="doc-code"><code>mesh bot run <span class="ld">"split auth refactor across 2 agents"</span> <span class="hl">--dry</span>   <span class="cm"># plan + price, no spend</span>
+mesh bot run <span class="ld">"..."</span>                        <span class="cm"># real run under budget</span></code></pre>
+          <p>Every claim the bot makes is a DAG node referencing the intent/event behind it — visible provenance. Safe default: write-lane + declared intents for anything it touches; it never merges to trunk without quorum of its own.</p>
+        </section>
+
+        <!-- memory -->
+        <section class="card doc-sec" id="memory" aria-labelledby="h-memory">
+          <div class="card-header">
+            <h2 id="h-memory">Memory — repo memory for every agent</h2>
+            <a class="seclink kbd" href="#memory">#memory</a>
+          </div>
+          <p>The Keeper role backends a key-value memory on the same event log: conventions that worked, de-facto truths, "how this repo behaves". Bounded by design — a char-budgeted <code>.mesh/memory.md</code> plus a keyword index, portable (copy the <code>.mesh</code> dir, or read it from a fresh clone).</p>
+          <pre class="doc-code"><code>mesh memory set <span class="ld">"migrations"</span> <span class="ld">"events.jsonl → SQLite WAL only past 100k"</span>
+mesh memory get <span class="ld">"migrations"</span>              <span class="cm"># → what an earlier session learned</span></code></pre>
+          <p>Exposed to any harness via <code>mesh_memory_set</code> / <code>mesh_memory_get</code>, so laptop 2 inherits what laptop 1 learned yesterday.</p>
+        </section>
+
+        <!-- services -->
+        <section class="card doc-sec" id="services" aria-labelledby="h-services">
+          <div class="card-header">
+            <h2 id="h-services">Services — ports and .env owned like files</h2>
+            <a class="seclink kbd" href="#services">#services</a>
+          </div>
+          <p>Worktrees never solved the "both agents bind dev-port 3000" fight. Intents carry a <b>service claim</b>: <code>services:["dev-port:3000","db:shared"]</code> — a service collision hits the same tier as a path overlap. Shared <code>.env</code> rides along: lanes inherit it from trunk, and a changed key is a <b>contract node</b> with real breaking-change notices.</p>
+          <pre class="doc-code"><code>mesh_declare_intent({
+  goal: <span class="ld">"Build checkout flow"</span>,
+  paths: [<span class="ld">"apps/shop/**"</span>],
+  services: [<span class="ld">"dev-port:5173"</span>]       <span class="cm"># nobody else binds 5173 this turn</span>
+})</code></pre>
+        </section>
+
+        <!-- 3. RECIPES -->
+        <section class="card doc-sec" id="recipes" aria-labelledby="h-recipes">
+          <div class="card-header">
+            <h2 id="h-recipes">Recipes — MCP wiring per harness</h2>
+            <a class="seclink kbd" href="#recipes">#recipes</a>
+          </div>
+          <p>Every harness below speaks stdio JSON-RPC&nbsp;2.0. Common shape: run the bridge as an MCP server with <code>MESH_ACTOR</code> (identity) and <code>MESH_HUB</code> (hub URL).</p>
+
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>Harness</th><th>Config file</th><th>MESH_ACTOR</th><th>How</th></tr></thead>
+              <tbody>
+                <tr><td><b>Google Antigravity</b></td><td><code>.agents/mcp_config.json</code></td><td><code>antigravity-ui</code></td><td>Auto-detected; rules via <code>.agents/rules/agentmesh.md</code></td></tr>
+                <tr><td><b>Claude Code</b></td><td><code>.mcp.json</code></td><td><code>claude-ui</code></td><td>Same server entry, repo root</td></tr>
+                <tr><td><b>Cursor</b></td><td><code>.cursor/mcp.json</code></td><td><code>cursor-agents</code></td><td>Written by <code>bin/mesh-join</code></td></tr>
+                <tr><td><b>Windsurf</b></td><td><code>.windsurf/mcp_config.json</code></td><td><code>windsurf-ui</code></td><td>Same server entry shape</td></tr>
+                <tr><td><b>OpenCode</b></td><td><code>opencode.json</code></td><td><code>opencode</code></td><td>Local MCP server entry</td></tr>
+                <tr><td><b>OpenAI Codex</b></td><td>managed by CLI</td><td><code>codex-backend</code></td><td><code>codex mcp add</code></td></tr>
+                <tr><td><b>Grok Build</b></td><td>MCP config + <code>AGENTS.md</code></td><td><code>grok-build</code></td><td>Reads <code>AGENTS.md</code> rules file too</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Google Antigravity → <code>.agents/mcp_config.json</code></h3>
+          <pre class="doc-code"><code>{
+  <span class="ld">"mcpServers"</span>: {
+    <span class="ld">"agentmesh"</span>: {
+      <span class="ld">"command"</span>: <span class="ld">"npx"</span>,
+      <span class="ld">"args"</span>: [<span class="ld">"-y"</span>, <span class="ld">"@harshalsp/agentmesh"</span>, <span class="ld">"bridge"</span>],
+      <span class="ld">"env"</span>: {
+        <span class="ld">"MESH_ACTOR"</span>: <span class="ld">"antigravity-ui"</span>,
+        <span class="ld">"MESH_HUB"</span>:   <span class="ld">"http://localhost:7777"</span>
+      }
+    }
+  }
+}</code></pre>
+
+          <h3>Claude Code → <code>.mcp.json</code> (repo root)</h3>
+          <pre class="doc-code"><code>{
+  <span class="ld">"mcpServers"</span>: {
+    <span class="ld">"agentmesh"</span>: {
+      <span class="ld">"command"</span>: <span class="ld">"npx"</span>,
+      <span class="ld">"args"</span>: [<span class="ld">"-y"</span>, <span class="ld">"@harshalsp/agentmesh"</span>, <span class="ld">"bridge"</span>],
+      <span class="ld">"env"</span>: { <span class="ld">"MESH_ACTOR"</span>: <span class="ld">"claude-ui"</span>, <span class="ld">"MESH_HUB"</span>: <span class="ld">"http://127.0.0.1:7777"</span> }
+    }
+  }
+}</code></pre>
+
+          <h3>Cursor → <code>.cursor/mcp.json</code></h3>
+          <pre class="doc-code"><code>{
+  <span class="ld">"mcpServers"</span>: {
+    <span class="ld">"agentmesh"</span>: {
+      <span class="ld">"command"</span>: <span class="ld">"npx"</span>, <span class="ld">"args"</span>: [<span class="ld">"-y"</span>, <span class="ld">"@harshalsp/agentmesh"</span>, <span class="ld">"bridge"</span>],
+      <span class="ld">"env"</span>: { <span class="ld">"MESH_ACTOR"</span>: <span class="ld">"cursor-agents"</span>, <span class="ld">"MESH_HUB"</span>: <span class="ld">"http://127.0.0.1:7777"</span> }
+    }
+  }
+}</code></pre>
+
+          <h3>Windsurf → <code>.windsurf/mcp_config.json</code></h3>
+          <pre class="doc-code"><code>{
+  <span class="ld">"mcpServers"</span>: {
+    <span class="ld">"agentmesh"</span>: {
+      <span class="ld">"command"</span>: <span class="ld">"npx"</span>, <span class="ld">"args"</span>: [<span class="ld">"-y"</span>, <span class="ld">"@harshalsp/agentmesh"</span>, <span class="ld">"bridge"</span>],
+      <span class="ld">"env"</span>: { <span class="ld">"MESH_ACTOR"</span>: <span class="ld">"windsurf-ui"</span>, <span class="ld">"MESH_HUB"</span>: <span class="ld">"http://127.0.0.1:7777"</span> }
+    }
+  }
+}</code></pre>
+
+          <h3>OpenCode → <code>opencode.json</code></h3>
+          <pre class="doc-code"><code>{
+  <span class="ld">"mcp"</span>: {
+    <span class="ld">"agentmesh"</span>: {
+      <span class="ld">"type"</span>: <span class="ld">"local"</span>,
+      <span class="ld">"command"</span>: [<span class="ld">"npx"</span>, <span class="ld">"-y"</span>, <span class="ld">"@harshalsp/agentmesh"</span>, <span class="ld">"bridge"</span>],
+      <span class="ld">"environment"</span>: { <span class="ld">"MESH_ACTOR"</span>: <span class="ld">"opencode"</span>, <span class="ld">"MESH_HUB"</span>: <span class="ld">"http://127.0.0.1:7777"</span> },
+      <span class="ld">"enabled"</span>: true
+    }
+  }
+}</code></pre>
+
+          <h3>OpenAI Codex → CLI-managed</h3>
+          <p>Codex has no JSON file to bless; register the server once from the terminal:</p>
+          <pre class="doc-code"><code><span class="ld">codex mcp add agentmesh</span> <span class="hl">--</span> npx -y @harshalsp/agentmesh bridge
+
+<span class="cm"># actor + hub go in as env:</span>
+codex mcp add agentmesh \
+  -e MESH_ACTOR=codex-backend \
+  -e MESH_HUB=http://127.0.0.1:7777 \
+  -- npx -y @harshalsp/agentmesh bridge</code></pre>
+
+          <h3>Grok Build</h3>
+          <p>Grok Build understands the <code>AGENTS.md</code> repo-conventions file plus MCP server configs. Keep <code>AGENTS.md</code> at the root (it carries the multi-harness rules of engagement: declare intent, respect leases, vote via MACP), then add the same <code>agentmesh</code> stdio server entry as Cursor/Windsurf above.</p>
+
+          <h3>MCP tool reference</h3>
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>Tool</th><th>Parameters</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>mesh_declare_intent</code></td><td><code>goal, paths, effect, contracts</code></td><td>Declare mutations <b>before</b> editing; returns collision + breaking-change warnings, grants the lease.</td></tr>
+                <tr><td><code>mesh_release</code></td><td><code>id</code></td><td>Free a declared intent; releases locks once work lands or is abandoned.</td></tr>
+                <tr><td><code>mesh_status</code></td><td>—</td><td>Your fact sheet: active scopes, contracts used, neighbors.</td></tr>
+                <tr><td><code>mesh_inbox</code></td><td>—</td><td>Drain unread peer notices, contract updates, requests.</td></tr>
+                <tr><td><code>mesh_request</code></td><td><code>to, text, ref</code></td><td>Delegate a task/contract requirement to a peer agent across laptops.</td></tr>
+                <tr><td><code>mesh_vote</code></td><td><code>id, vote, weight, rationale</code></td><td>Binding vote in a MACP decision/quorum session.</td></tr>
+                <tr><td><code>mesh_propose_contract</code></td><td><code>title, mode, participants, spec</code></td><td>Open an RFC-grade coordination session.</td></tr>
+                <tr><td><code>mesh_crdt_set</code></td><td><code>key, value</code></td><td>Mutate a shared AST symbol / contract node (LWW delta).</td></tr>
+                <tr><td><code>mesh_roster</code></td><td>—</td><td>All active agents, their lanes, heartbeats.</td></tr>
+                <tr><td><code>mesh_pin</code></td><td><code>node, text</code></td><td>Spatial AST pin; alerts only the relevant scope owners.</td></tr>
+                <tr><td><code>mesh_board_post</code></td><td><code>text, color, codeRef</code></td><td>Sticky note on the shared whiteboard, linked to code.</td></tr>
+                <tr><td><code>mesh_task_list</code></td><td><code>status</code></td><td>Shared task board (pending / claimed / blocked).</td></tr>
+                <tr><td><code>mesh_task_claim</code></td><td><code>id</code></td><td>Atomic claim: exactly one winner in a race; honors deps + WIP.</td></tr>
+                <tr><td><code>mesh_task_set</code></td><td><code>id, status</code></td><td>Advance a task; unblocks dependents.</td></tr>
+                <tr><td><code>mesh_bot</code></td><td><code>role, goal, budget</code></td><td>Summon the Conductor from any harness.</td></tr>
+                <tr><td><code>mesh_memory_get</code></td><td><code>key</code></td><td>Read repo memory.</td></tr>
+                <tr><td><code>mesh_memory_set</code></td><td><code>key, value</code></td><td>Write repo memory (Keeper namespace).</td></tr>
+                <tr><td><code>mesh_symbols</code></td><td><code>file</code></td><td>Symbol-level view of a file feeding AST leases.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 4. HTTP API -->
+        <section class="card doc-sec" id="api" aria-labelledby="h-api">
+          <div class="card-header">
+            <h2 id="h-api">HTTP API — the hub on <code>:7777</code></h2>
+            <a class="seclink kbd" href="#api">#api</a>
+          </div>
+          <p><code>src/hub.mjs</code> is a dependency-free HTTP daemon; every client — canvas, TUI, extension, curl — polls the same routes.</p>
+
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>Method</th><th>Endpoint</th><th>Returns</th></tr></thead>
+              <tbody>
+                <tr><td class="meth get">GET</td><td><code>/health</code></td><td><code>{ok, seq, epoch, intents}</code> — liveness.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/state</code></td><td>Trunk head, contract count, lanes, roster, open requests, decisions, live intents, presence.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/verify</code></td><td>Event-log integrity via SQLite hash chain.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/metrics</code></td><td>Uptime, event counts by kind, presence, inbox depth, auth mode (<code>enforced|open</code>).</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/ready</code></td><td>Readiness + disk headroom (kill switch before WAL fills).</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/events</code> (SSE)</td><td>Live event stream — subscribe with <code>EventSource</code>.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/overview</code></td><td>One poll for every UI: queue, contracts, lanes, roster, requests, pins, decisions, collisions, build.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/tasks</code></td><td>The shared task board with statuses, deps, owners.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/bot</code></td><td>Conductor state: active role, budget, last actions.</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/board</code></td><td>Whiteboard shapes (LWW-ordered ops).</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/events?limit=</code></td><td>Replay last N events (capped at 500).</td></tr>
+                <tr><td class="meth get">GET</td><td><code>/api/audit</code></td><td>Audit trail export (who/what/when + verdicts).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/cmd</code></td><td><code>{actor, kind, payload}</code> — kinds: <code>intent.declare</code> · <code>intent.release</code> · <code>presence</code>. Primary write path.</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/request</code></td><td>Send an inter-agent request (<code>actor, to, text, ref</code>).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/request-respond</code></td><td>Accept/decline a request (<code>actor, id, accept, reason</code>).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/pin</code></td><td>Spatial AST pin (<code>actor, node, text</code>).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/decision</code></td><td>Record a decision in the log.</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/board-op</code></td><td>Whiteboard op (LWW-converged).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/crdt</code></td><td>Push a CRDT delta to the semantic document.</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/macp</code></td><td>MACP session ops: <code>create | vote | negotiate</code>.</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/dag</code></td><td>Merkle DAG: <code>append | merge</code> content-addressed nodes.</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/p2p</code></td><td>WebRTC signaling mailbox: <code>join | leave | signal</code> (60&nbsp;s TTL, never logged).</td></tr>
+                <tr><td class="meth post">POST</td><td><code>/api/tasks</code></td><td>Task create / claim / set — the same atomic-claim kernel.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Writing an intent by hand</h3>
+          <pre class="doc-code"><code>curl -X POST http://127.0.0.1:7777/cmd \
+  -H <span class="ld">"content-type: application/json"</span> \
+  -H <span class="ld">"authorization: Bearer $MESH_TOKEN"</span> \
+  -d <span class="ld">'{"actor":"codex-backend","kind":"intent.declare",
+      "payload":{"goal":"Patch UI bug","paths":["site/**"],
+                 "effect":"additive"}}'</span></code></pre>
+
+          <div class="note warn">
+            <span class="co-k">AUTH</span>
+            <span>Writes authenticate with <b>Bearer capability tokens per actor</b>: mint one with <code>mesh token &lt;actor&gt;</code> — actor, scope and 8-hour expiry, signed by the hub's ed25519 key. Scopes limit what a token may write (<code>intent.declare</code> ≠ <code>request</code> ≠ <code>pin</code>). Enforcement is <b>auto-armed once keys exist</b> (<code>mesh up</code> generates them); a key-less hub stays open for local dev only. Missing/expired → <code>401</code>; token-actor ≠ body actor → <code>403</code>. See <a href="#security">Security model</a>.</span>
+          </div>
+        </section>
+
+        <!-- 5. SECURITY -->
+        <section class="card doc-sec" id="security" aria-labelledby="h-security">
+          <div class="card-header">
+            <h2 id="h-security">Security model</h2>
+            <a class="seclink kbd" href="#security">#security</a>
+          </div>
+          <p>Premise: <b>every agent is untrusted by default</b> — even yours. Safety is enforced at the boundary, never requested via prompt.</p>
+          <ul>
+            <li><b>Boundary enforcement over prompts</b> — deny-list + approval <code>mesh run</code> shims on PATH (a denied real binary never execs: exit <code>126</code>/<code>125</code>), plus leases, policy and quorum gates in the hub. A rogue harness can ask loudly; it still hits the wall.</li>
+            <li><b>ed25519 capability auth</b> — actor-bound, scoped tokens, ≤8&nbsp;h expiry; impersonation fails with <code>403</code> (token actor must equal body actor).</li>
+            <li><b>Token rotation + revocation</b> — <code>mesh keygen</code> rotates the hub key; reissue with <code>mesh token &lt;actor&gt;</code>; revoke one credential with <code>mesh token revoke &lt;jti&gt;</code>. Tokens are stateless (max 8&nbsp;h life), so a restart plus stop-issuing cuts off everything at once.</li>
+            <li><b>Human overrides agent leases</b> — approvals collect in a human inbox; a human response wins over agent-side quorum. A hallucinated approval is data, never fact.</li>
+            <li><b>Audit export</b> — <code>mesh audit export</code> ships the signed, hash-chained trail; <code>/verify</code> proves log integrity under SQLite WAL.</li>
+            <li><b>DoS budgeting</b> — 100 writes/min/actor (<code>429</code>), 1&nbsp;MB bodies (<code>413</code>), retry cap 3, circuit breaker 20/min.</li>
+            <li><b>Degrade to plain git</b> — if the hub dies mid-sprint, you still hold an ordinary clone. Eject branches with <code>mesh eject</code>, restore bundles with <code>mesh recover</code>. No lock-in.</li>
+            <li><b>No vendor cloud</b> — hub, keys, memory and audit live in the repo's <code>.mesh/</code> and the SQLite file. LAN or VPN only; the hub warns when bound non-loopback without auth.</li>
+          </ul>
+          <div class="note">
+            <span class="co-k">READ</span>
+            <span>Full threat model → controls table: <a href="../docs/SECURITY.md">docs/SECURITY.md</a> · incident-runbook and failover drills: <a href="../docs/RUNBOOK.md">docs/RUNBOOK.md</a>.</span>
+          </div>
+        </section>
+
+        <!-- 6. TROUBLESHOOTING -->
+        <section class="card doc-sec" id="troubleshooting" aria-labelledby="h-troubleshooting">
+          <div class="card-header">
+            <h2 id="h-troubleshooting">Troubleshooting</h2>
+            <a class="seclink kbd" href="#troubleshooting">#troubleshooting</a>
+          </div>
+
+          <h3>First stop: <code>mesh doctor</code></h3>
+          <p>Diagnoses ports, node/git versions, driver, network shape and board files in one pass. If pins or status look stale but writes still land, suspect a stale canvas tab; doctor resets the baseline.</p>
+          <pre class="doc-code"><code>node bin/mesh doctor</code></pre>
+
+          <h3>Port busy (<code>7777</code>)</h3>
+          <p>Another hub (or a zombie from a crashed session) is holding the port. Kill it, or run the hub on another port.</p>
+          <pre class="doc-code"><code><span class="cm"># mac / linux</span>
+lsof -ti :7777 | xargs kill -9
+<span class="cm"># windows</span>
+netstat -ano | findstr :7777
+<span class="hl">taskkill /F /PID &lt;pid&gt;</span>          <span class="cm"># /T too if the node froze with children</span></code></pre>
+
+          <h3>401 on every write</h3>
+          <p>Your capability token expired (8&nbsp;h) or was rotated (<code>mesh keygen</code>). Mint a fresh one and re-export it — the bridge reads <code>MESH_TOKEN</code>, curl reads the <code>authorization</code> header.</p>
+          <pre class="doc-code"><code>mesh token codex-backend --ttl 8      <span class="cm"># fresh ed25519-signed credential</span>
+export MESH_TOKEN=&lt;paste&gt;             <span class="cm"># used by bin/mesh + bridge</span></code></pre>
+
+          <h3>Notes on <code>node src/hub.mjs</code></h3>
+          <ul>
+            <li>Default bind is loopback; only <code>MESH_HOST=0.0.0.0</code> exposes it to the LAN — and it still warns when bound non-loopback without auth.</li>
+            <li><code>7781</code>/<code>7782</code> belong to <code>npm test</code> — don't park the hub there.</li>
+            <li><code>SIGINT/SIGTERM</code> checkpoint the SQLite DB before exit — a clean, if slow, shutdown; double <code>Ctrl-C</code> is <b>not</b> faster.</li>
+          </ul>
+
+          <h3>Windows notes</h3>
+          <ul>
+            <li><b>taskkill cleanup</b> — a killed terminal sometimes leaks <code>node.exe</code>; <code>taskkill /F /IM node.exe</code> clears the deck (it will kill every node process on the box).</li>
+            <li><b>PATHEXT shims</b> — <code>mesh run</code> emits shim executables as <code>*.cmd</code> wrappers so Windows PATH resolution (via <code>PATHEXT</code>) finds them; if a <code>126/125</code> exit appears, check the shim dir is first on PATH.</li>
+          </ul>
+
+          <h3>Hub unreachable from laptop B</h3>
+          <ul>
+            <li>Laptop A must run with <code>MESH_HOST=0.0.0.0</code> — a loopback bind never accepts LAN joins.</li>
+            <li>Use laptop A's LAN IP (<code>ipconfig</code> / <code>ip a</code>), e.g. <code>192.168.x.x</code> — not the loopback.</li>
+            <li>Test first: <code>curl http://&lt;LAPTOP-A-IP&gt;:7777/health</code> from laptop B, then <code>./bin/mesh-join …</code>.</li>
+            <li>Still refused: LAN firewall or guest-Wi-Fi AP isolation — or just join over VPN/Tailscale.</li>
+          </ul>
+          <div class="note warn">
+            <span class="co-k">STILL BROKEN?</span>
+            <span><code>mesh status</code> prints hub health, driver and trunk head; <code>mesh overview</code> dumps full topology — a screenshot beats a paragraph.</span>
+          </div>
+        </section>
+
+      </div><!-- /content -->
+    </div><!-- /doc-shell -->
+  </main>
+
+  <footer class="app-footer">
+    <div>AGENTMESH · DOCS · <b style="color:var(--mut);">v1.2.0</b> · MIT — no external requests, no trackers, system fonts only</div>
+    <div style="display:flex;gap:18px;">
+      <a href="./index.html">Strip Board</a>
+      <a href="./landing.html">Landing</a>
+      <a href="./playground.html">Playground</a>
+    </div>
+  </footer>
+
+  <script>
+    /* collapse the sidebar to a closed <details> on small screens (no CSS hacks needed) */
+    (function () {
+      var side = document.getElementById('side-nav');
+      if (side && window.matchMedia('(max-width: 980px)').matches) side.removeAttribute('open');
+    })();
+  </script>
+</body>
+</html>

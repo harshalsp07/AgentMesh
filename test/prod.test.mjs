@@ -4,6 +4,8 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync, spawnSync } from 'node:child_process';
 import { rmSync, existsSync } from 'node:fs';
+import { join, delimiter } from 'node:path';
+import { killChild, rmSafe } from './cleanup.mjs';
 import { keygen, mintToken } from '../src/auth.mjs';
 import { buildShims, decide } from '../src/shims.mjs';
 import { threeWayMerge } from '../src/merge.mjs';
@@ -28,7 +30,7 @@ const cmd = (actor, kind, payload, token = null) => fetch(`${HUB}/cmd`, {
 }).then((r) => r.json().then((b) => ({ status: r.status, body: b })));
 
 before(async () => { rmSync(DIR, { recursive: true, force: true }); hub = startHub(); await waitUp(); });
-after(() => { try { hub.kill('SIGTERM'); } catch {} rmSync(DIR, { recursive: true, force: true }); });
+after(async () => { killChild(hub); await rmSafe(DIR); });
 
 describe('durability', () => {
   it('survives a kill -9 style restart with log intact (SQLite source of truth)', async () => {
@@ -69,11 +71,12 @@ describe('shims + merge', () => {
     assert.equal(decide(DIR, 'rm -rf /*').verdict, 'deny');
     assert.equal(decide(DIR, 'npm publish x').verdict, 'approval');
     assert.equal(decide(DIR, 'echo hi').verdict, 'allow');
-    const denied = spawnSync('rm', ['-rf', '/'], { env: { ...process.env, PATH: `${DIR}/shims:${process.env.PATH}` }, encoding: 'utf8' });
+    const env = { ...process.env, PATH: `${join(process.cwd(), DIR, 'shims')}${delimiter}${process.env.PATH}` };
+    const denied = process.platform === 'win32'
+      ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'rm -rf /'], { env, encoding: 'utf8' }) // cmd resolves the .cmd shim via PATHEXT
+      : spawnSync('rm', ['-rf', '/'], { env, encoding: 'utf8' });
     assert.notEqual(denied.status, 0);
     assert.match(denied.stderr + denied.stdout, /denied/);
-    const ok = spawnSync('node', ['--version'], { env: { ...process.env, PATH: `${DIR}/shims:${process.env.PATH}` }, encoding: 'utf8' });
-    void ok;
   });
   it('three-way merge: clean auto-merges, divergent becomes a conflict object', () => {
     const base = 'a\nb\nc\n';

@@ -5,7 +5,13 @@
   "display": "standalone",
   "background_color": "#07090e",
   "theme_color": "#07090e",
-  "description": "Production-grade Autonomous Multi-Agent Swarm Coordination Platform",
+  "description": "The collaboration layer for AI agents: lanes, leases, MACP quorum, and a Conductor bot — self-hosted.",
+  "shortcuts": [
+    { "name": "Strip Board (app)", "url": "/index.html" },
+    { "name": "Landing", "url": "/landing.html" },
+    { "name": "Docs", "url": "/docs.html" },
+    { "name": "Playground", "url": "/playground.html" }
+  ],
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M50 20L20 40l30 20 30-20-30-20zM20 60l30 20 30-20' stroke='%2338bdf8' stroke-width='8' fill='none'/></svg>",

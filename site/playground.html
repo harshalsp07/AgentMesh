@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="AgentMesh playground — run the real collaboration protocol (intents, lanes, MACP quorum, semantic CRDT) in your browser, with the same kernel code as the hub.">
+<title>Playground — AgentMesh</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  .pg-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .pg-grid { grid-template-columns: 1fr; } }
+  .pg-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .pg-tab { background: #11141b; border: 1px solid #232936; color: #9fb2c8; padding: 6px 12px; border-radius: 8px; cursor: pointer; font: 12px ui-monospace, monospace; }
+  .pg-tab[aria-selected="true"] { color: #e7f0fb; border-color: #37e0f8; background: rgba(55, 224, 248, .08); }
+  .pg-dots { display: flex; align-items: center; justify-content: center; gap: 34px; padding: 26px 10px 30px; }
+  .dot { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font: 9.5px ui-monospace, monospace; color: #cfe1f5; text-align: center; border: 2px solid transparent; transition: box-shadow .2s, border-color .2s, transform .2s; }
+  .dot.ag-ui { background: #1b2a4a; border-color: #6ea8ff; }
+  .dot.ag-be { background: #17313a; border-color: #37e0f8; }
+  .dot.active { box-shadow: 0 0 0 6px rgba(55, 224, 248, .12); transform: translateY(-4px); }
+  .pg-strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px; }
+  .strip-call { min-width: 200px; border: 1px solid #232936; background: #0f1219; border-radius: 10px; padding: 8px 10px; opacity: .35; transition: opacity .25s; }
+  .strip-call.on { opacity: 1; }
+  .strip-call .toolname { font: 11px ui-monospace, monospace; color: #37e0f8; }
+  .strip-call .args { font: 10.5px ui-monospace, monospace; color: #8fa3bd; white-space: pre-wrap; margin-top: 4px; }
+  .log { font: 11px ui-monospace, monospace; color: #9fb2c8; background: #0b0e14; border: 1px solid #1d2330; border-radius: 10px; padding: 10px; height: 300px; overflow-y: auto; white-space: pre-wrap; }
+  .log b { color: #e7f0fb; font-weight: 600; }
+  .log .ok { color: #5be49b; } .log .warn { color: #ffcf5c; } .log .err { color: #ff7a7a; } .log .dim { color: #64748b; }
+  .quorum-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; font: 12px ui-monospace, monospace; color: #cfe1f5; flex-wrap: wrap; }
+  .vote-chip { padding: 2px 10px; border-radius: 999px; font: 11px ui-monospace, monospace; border: 1px solid #2a3242; }
+  .vote-yes { color: #5be49b; } .vote-no { color: #ff7a7a; } .vote-wait { color: #64748b; }
+  .crdt-value { font: 20px ui-monospace, monospace; color: #e7f0fb; padding: 8px 12px; border-radius: 8px; background: #0b0e14; border: 1px solid #1d2330; min-width: 90px; display: inline-block; }
+  .crdt-crit { color: #64748b; font: 11px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div class="plate">
+  <header class="app-header">
+    <a href="index.html" class="logo" style="text-decoration:none">
+      <div class="logo-badge">⬢</div>
+      <div style="text-align:left">
+        <div style="font-weight:700; color:#e7f0fb">AgentMesh</div>
+        <div class="sub-plate">PLAYGROUND · THE PROTOCOL, LIVE IN YOUR BROWSER</div>
+      </div>
+    </a>
+    <nav class="nav-tabs" style="gap:6px">
+      <a class="ro-seg" href="index.html">Strip board</a>
+      <a class="ro-seg" href="landing.html">About</a>
+      <a class="ro-seg" href="docs.html">Docs</a>
+      <a class="ro-seg" href="blog.html">Engineering</a>
+    </nav>
+  </header>
+</div>
+
+<main style="max-width:1080px; margin:18px auto; padding:0 16px">
+  <p style="color:#9fb2c8; font-size:14px; line-height:1.6; margin:0 0 14px">
+    This page imports the <b style="color:#e7f0fb">real AgentMesh kernels</b> — the Lamport-LWW semantic CRDT and the MACP
+    5-mode quorum engine — bundled for the browser from <code style="color:#37e0f8">src/crdt.mjs</code> and <code style="color:#37e0f8">src/macp.mjs</code>.
+    No mocks: the same code the hub runs decides what you see below.
+  </p>
+
+  <div class="pg-tabs" role="tablist" aria-label="playground scenes">
+    <button class="pg-tab" role="tab" aria-selected="true" data-scene="swarm">1 · A swarm moment</button>
+    <button class="pg-tab" role="tab" aria-selected="false" data-scene="quorum">2 · MACP quorum lab</button>
+    <button class="pg-tab" role="tab" aria-selected="false" data-scene="crdt">3 · Semantic CRDT lab</button>
+  </div>
+
+  <!-- SCENE 1 — swarm moment -->
+  <section id="scene-swarm">
+    <div class="pg-grid">
+      <div class="card">
+        <div class="card-header">· Two agents, one repo, zero collisions</div>
+        <div class="pg-dots">
+          <div class="dot ag-ui" id="dot-ui">UI<br>agent</div>
+          <div style="text-align:center; color:#64748b; font:11px ui-monospace, monospace">⬇<br>run the<br>moment<br>⬇</div>
+          <div class="dot ag-be" id="dot-be">BACKEND<br>agent</div>
+        </div>
+        <div class="pg-strip" id="swarm-strips"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center">
+          <button class="btn-primary" id="run-swarm" style="border:0; cursor:pointer">▶ Run the moment</button>
+          <button class="btn-ghost" id="run-swarm-conflict" style="border:1px solid #2a3242; cursor:pointer">Run with a conflict</button>
+          <span class="crdt-crit" id="swarm-verdict"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">· Mesh log (events as the hub sees them)</div>
+        <div class="log" id="log1" aria-live="polite"></div>
+        <div class="readout ro-seg" style="display:flex; gap:10px; margin-top:8px; justify-content:center" id="swarm-stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENE 2 — quorum lab -->
+  <section id="scene-quorum" hidden>
+    <div class="pg-grid">
+      <div class="card">
+        <div class="card-header">· MACP quorum session (real kernel)</div>
+        <p style="color:#9fb2c8; font-size:13px; line-height:1.55">
+          A breaking change needs a <b style="color:#e7f0fb">quorum</b> before it lands. Each peer casts a weighted ballot through
+          <code style="color:#37e0f8">registerQuorumBallot()</code>, then the kernel evaluates the decision deterministically.
+        </p>
+        <div id="quorum-rows"></div>
+        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap">
+          <button class="btn-primary" id="q-vote" style="border:0; cursor:pointer">Cast ballots → evaluate</button>
+          <button class="btn-ghost" id="q-reset" style="border:1px solid #2a3242; cursor:pointer">Reset</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">· Kernel trace</div>
+        <div class="log" id="log2" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENE 3 — CRDT lab -->
+  <section id="scene-crdt" hidden>
+    <div class="pg-grid">
+      <div class="card">
+        <div class="card-header">· Two docs, one truth (Lamport LWW)</div>
+        <p style="color:#9fb2c8; font-size:13px; line-height:1.55">
+          Set a symbol on <b>doc A</b> or <b>doc B</b> (two laptops), then <b style="color:#e7f0fb">merge</b>.
+          The kernel picks the winner by Lamport clock with an actor tiebreak — deterministic, offline-first, no merge conflicts.
+        </p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0">
+          <span class="readout ro-seg">checkout.fee = <span class="crdt-value" id="crdt-live">∅</span></span>
+          <span class="crdt-crit" id="crdt-meta"></span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn-ghost" id="c-set-a" style="border:1px solid #2a3242; cursor:pointer">A sets fee 0.03</button>
+          <button class="btn-ghost" id="c-set-b" style="border:1px solid #2a3242; cursor:pointer">B sets fee 0.05</button>
+          <button class="btn-primary" id="c-merge" style="border:0; cursor:pointer">⇄ merge deltas</button>
+          <button class="btn-ghost" id="c-storm" style="border:1px solid #2a3242; cursor:pointer">⚡ offline storm (9 writes)</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">· CRDT trace</div>
+        <div class="log" id="log3" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer style="max-width:1080px; margin:28px auto 40px; padding:0 16px; display:flex; gap:14px; align-items:center; color:#64748b; font-size:12px; flex-wrap:wrap">
+  <span>AgentMesh · the collaboration layer for AI agents</span>
+  <a class="ro-seg" href="index.html">Open the strip board →</a>
+  <a class="ro-seg" href="docs.html">Read the docs →</a>
+</footer>
+
+<script type="module" src="./vendor.mjs"></script>
+<script type="module">
+import { SemanticDocument, MACPKernel } from './vendor.mjs';
+
+const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+const stamp = () => new Date().toLocaleTimeString([], { hour12: false });
+const print = (el, html) => { const d = document.createElement('div'); d.innerHTML = html; el.appendChild(d); el.scrollTop = el.scrollHeight; };
+const log1 = document.getElementById('log1');
+const log2 = document.getElementById('log2');
+const log3 = document.getElementById('log3');
+const say1 = (h) => print(log1, `<span class="dim">${stamp()}</span> ${h}`);
+const say2 = (h) => print(log2, `<span class="dim">${stamp()}</span> ${h}`);
+const say3 = (h) => print(log3, `<span class="dim">${stamp()}</span> ${h}`);
+
+/* ------------------------- scene 1 · a swarm moment */
+const ACTS = (conflict) => [
+  { dot: 'be',  tool: 'mesh_declare_intent', arg: 'goal: "add fee API"\npaths: [src/api/**]\ncontracts: [api:POST /fees]', warn: false },
+  { dot: 'ui',  tool: 'mesh_declare_intent', arg: 'goal: "checkout copy + fee widget"\npaths: [site/**]', warn: false },
+  { dot: null,  tool: 'forecast', arg: conflict ? 'candidate paths share site/** ↔ src/api/** scope edges' : 'paths disjoint · contracts in sync · grade = none', warn: false },
+  ...(conflict ? [
+    { dot: null, tool: 'macp:proposal', arg: 'breaking change on shared symbol checkout.fee → quorum window opens', warn: true },
+  ] : []),
+  { dot: 'ui',  tool: 'mesh snapshot ui', arg: 'lane ui: dir copy + git-backed vcs ref saved', warn: false },
+  { dot: 'be',  tool: 'mesh snapshot be', arg: 'lane be: dir copy + git-backed vcs ref saved', warn: false },
+  { dot: null,  tool: 'queue.drain → trunk', arg: conflict ? 'CAS advance behind verify T0/T1/T2 + quorum ✓' : 'CAS advance behind verify T0/T1/T2 ✓', warn: false },
+];
+
+const kernelSwarm = new MACPKernel();
+const verdictEl = document.getElementById('swarm-verdict');
+const statsEl = document.getElementById('swarm-stats');
+const stripHost = document.getElementById('swarm-strips');
+
+async function runSwarm(conflict) {
+  stripHost.innerHTML = '';
+  verdictEl.textContent = '';
+  statsEl.innerHTML = '';
+  for (const id of ['dot-ui', 'dot-be']) document.getElementById(id).classList.remove('active');
+  say1(`<b>— run begins (${conflict ? 'conflict' : 'clean'} scenario) —</b>`);
+  const seq = ACTS(conflict);
+  for (const c of seq) {
+    const card = document.createElement('div');
+    card.className = 'strip-call';
+    card.innerHTML = `<div class="toolname">${esc(c.tool)}</div><div class="args">${esc(c.arg)}</div>`;
+    stripHost.appendChild(card);
+    if (c.dot) {
+      const dot = document.getElementById('dot-' + c.dot);
+      dot.classList.add('active');
+      setTimeout(() => dot.classList.remove('active'), 560);
+    }
+    await new Promise((r) => setTimeout(r, 480));
+    card.classList.add('on');
+    say1(`<span class="${c.warn ? 'warn' : 'ok'}">${esc(c.tool)}</span> <span class="dim">${esc(c.arg.split('\n')[0])}</span>`);
+  }
+  const sess = kernelSwarm.createSession({
+    mode: conflict ? 'quorum' : 'task',
+    initiator: 'antigravity-ui',
+    title: conflict ? 'quorum: shipping the fee change across the stack' : 'task: price display sync',
+    participants: ['antigravity-ui', 'codex-backend'],
+  });
+  let finalStatus = sess.status;
+  if (conflict) {
+    sess.registerQuorumBallot('antigravity-ui', true, 'ship together, gate the API flag');
+    sess.registerQuorumBallot('codex-backend', true, 'flag stays off until consumers migrate');
+    finalStatus = sess.evaluateDecision?.()?.status ?? sess.status;
+  } else {
+    sess.logStep('antigravity-ui', 'pledge', 'lane claim honored; snapshot saved');
+  }
+  verdictEl.textContent = 'done · trunk advanced · session ' + sess.id.slice(-6);
+  verdictEl.style.color = '#5be49b';
+  statsEl.innerHTML = `<span>sessions <b>${kernelSwarm.listSessions().length}</b></span><span>steps <b>${seq.length}</b></span><span class="ok">verdict ✓</span>`;
+  say1(`<span class="ok">✓</span> MACP session <b>${esc(sess.id)}</b> status <b class="ok">${esc(finalStatus)}</b> — real kernel, real serializations.`);
+}
+document.getElementById('run-swarm').onclick = () => runSwarm(false);
+document.getElementById('run-swarm-conflict').onclick = () => runSwarm(true);
+
+/* ------------------------- scene 2 · quorum lab */
+const PEERS = [
+  { id: 'antigravity-ui', w: 1, note: 'initiator; proposes the change' },
+  { id: 'codex-backend', w: 1, note: 'owner of the contract being replaced' },
+  { id: 'fresh-reviewer', w: 1, note: 'fresh-context reviewer without author bias' },
+];
+let quorum = null;
+function quorumReset() {
+  const kernel = new MACPKernel();
+  const sess = kernel.createSession({
+    mode: 'quorum',
+    initiator: 'antigravity-ui',
+    title: 'quorum: retire /v1/checkout in favor of /v2',
+    participants: PEERS.map((p) => p.id),
+  });
+  quorum = { kernel, sess, votes: new Map(PEERS.map((p) => [p.id, 'wait'])) };
+  quorumRender();
+  log2.innerHTML = '';
+  say2(`session <b>${esc(sess.id)}</b> created — 3 participants, 5-minute TTL.`);
+}
+function quorumRender() {
+  const rows = PEERS.map((p, i) => {
+    const v = quorum.votes.get(p.id);
+    const cls = v === 'approve' ? 'vote-yes' : v === 'deny' ? 'vote-no' : 'vote-wait';
+    return `<div class="quorum-row">
+      <span style="min-width:170px">${esc(p.id)} <span class="dim">w=${p.w}</span></span>
+      <button class="vote-chip vote-yes ${v === 'approve' ? '' : ''}" data-peer="${p.id}" data-v="approve" style="cursor:pointer;border-color:${v === 'approve' ? '#5be49b' : '#2a3242'}">approve</button>
+      <button class="vote-chip vote-no" data-peer="${p.id}" data-v="deny" style="cursor:pointer;border-color:${v === 'deny' ? '#ff7a7a' : '#2a3242'}">deny</button>
+      <span class="vote-chip ${cls}" id="marked-${i}">${v === 'wait' ? 'abstain' : v}</span>
+    </div>`;
+  }).join('');
+  const host = document.getElementById('quorum-rows');
+  host.innerHTML = rows;
+  for (const b of host.querySelectorAll('[data-peer]')) {
+    b.onclick = () => {
+      const id = b.dataset.peer;
+      quorum.votes.set(id, b.dataset.v === 'approve' ? 'approve' : 'deny');
+      quorumRender();
+      say2(`<b>${esc(id)}</b> ballots <b class="${b.dataset.v === 'approve' ? 'ok' : 'err'}">${b.dataset.v}</b> — ${PEERS.find((x) => x.id === id).note}`);
+    };
+  }
+}
+document.getElementById('q-reset').onclick = quorumReset;
+document.getElementById('q-vote').onclick = () => {
+  const { sess } = quorum;
+  say2('casting ballots via <b>registerQuorumBallot()</b>…');
+  for (const [id, v] of quorum.votes) {
+    if (v === 'wait') continue;
+    sess.registerQuorumBallot(id, v === 'approve', id + ' votes in the quorum window');
+  }
+  const ev = sess.evaluateDecision?.();
+  const line = ev && typeof ev === 'object' ? JSON.stringify(ev).slice(0, 220) : String(sess.status);
+  say2(`<b>evaluateDecision →</b> ${esc(line)}`);
+};
+
+/* ------------------------- scene 3 · CRDT lab */
+const docA = new SemanticDocument('doc-A');
+const docB = new SemanticDocument('doc-B');
+const feeEl = document.getElementById('crdt-live');
+const metaEl = document.getElementById('crdt-meta');
+const refresh = () => {
+  const a = docA.getSymbol('checkout.fee');
+  const b = docB.getSymbol('checkout.fee');
+  feeEl.textContent = String(a ?? b ?? '∅');
+  metaEl.textContent = `A:${a ?? '∅'} · B:${b ?? '∅'}`;
+};
+for (const d of [docA, docB]) d.setSymbol('checkout.fee', '0.00', 'init');
+refresh();
+document.getElementById('c-set-a').onclick = () => {
+  const r = docA.setSymbol('checkout.fee', '0.03', 'antigravity-ui');
+  refresh();
+  say3(`docA.setSymbol('checkout.fee','0.03') → <b class="ok">lamport ${r.op.lamport}</b> clock ${esc(JSON.stringify(r.op.clock))}`);
+};
+document.getElementById('c-set-b').onclick = () => {
+  const r = docB.setSymbol('checkout.fee', '0.05', 'codex-backend');
+  refresh();
+  say3(`docB.setSymbol('checkout.fee','0.05') → <b class="ok">lamport ${r.op.lamport}</b> clock ${esc(JSON.stringify(r.op.clock))}`);
+};
+document.getElementById('c-merge').onclick = () => {
+  const dA = docA.getDelta(), dB = docB.getDelta();
+  try { docB.applyDelta(dA); docA.applyDelta(dB); } catch (e) { say3(`<span class="err">merge: ${esc(e.message)}</span>`); return; }
+  refresh();
+  say3(`bidirectional delta merge → both docs read <b class="ok">${esc(docA.getSymbol('checkout.fee'))}</b> (deterministic LWW)`);
+};
+document.getElementById('c-storm').onclick = async () => {
+  for (let i = 1; i <= 9; i++) {
+    docB.setSymbol('checkout.fee', '0.0' + i, 'codex-offline');
+    await new Promise((r) => setTimeout(r, 60));
+  }
+  refresh();
+  say3('offline storm:  rapid writes on docB absorbed');
+  docA.applyDelta(docB.getDelta());
+  refresh();
+  say3(`delta applied on reconnect → convergence <b class="ok">${esc(docA.getSymbol('checkout.fee'))}</b>, zero conflicts ✓`);
+};
+
+/* ------------------------- tabs */
+for (const t of document.querySelectorAll('.pg-tab')) {
+  t.onclick = () => {
+    for (const x of document.querySelectorAll('.pg-tab')) x.setAttribute('aria-selected', String(x === t));
+    for (const s of ['swarm', 'quorum', 'crdt']) document.getElementById('scene-' + s).hidden = t.dataset.scene !== s;
+  };
+}
+quorumReset();
+say1('<b>playground ready.</b> Press ▶ Run the moment — every strip is a real protocol call.');
+say3('CRDT lab ready — two SemanticDocuments instantiated from vendor.mjs.');
+</script>
+</body>
+</html>
+

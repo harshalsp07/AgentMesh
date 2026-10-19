@@ -3,6 +3,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { rmSync, existsSync } from 'node:fs';
+import { killChild, rmSafe } from './cleanup.mjs';
 import { createRequire } from 'node:module';
 
 const PORT = '7782';
@@ -22,7 +23,7 @@ before(async () => {
   }
   throw new Error('hub did not start');
 });
-after(() => { hub.kill(); rmSync(DIR, { recursive: true, force: true }); });
+after(async () => { killChild(hub); await rmSafe(DIR); });
 
 describe('hub UI api', () => {
   it('overview has every panel in one poll; events capped', async () => {
@@ -73,6 +74,12 @@ describe('clients', () => {
     });
     const tools = (await ask({ method: 'tools/list' })).result.tools.map((t) => t.name);
     assert.ok(tools.includes('mesh_request') && tools.includes('mesh_pin'));
+    // regression: a missing brace once swallowed every new tool below mesh_crdt_set —
+    // the full tool surface must stay visible (task board, bot, memory, build status)
+    for (const t of ['mesh_task_create', 'mesh_task_claim', 'mesh_bot', 'mesh_memory_set', 'mesh_build_status', 'mesh_declare_intent']) {
+      assert.ok(tools.includes(t), `tool ${t} missing from tools/list (${tools.length} exposed)`);
+    }
+    assert.equal(tools.length >= 19, true, `expected >=19 top-level tools, got ${tools.length}`);
     const out = (await ask({ method: 'tools/call', params: { name: 'mesh_request', arguments: { to: 'be-agent', text: 'hi via mcp' } } })).result.content[0].text;
     assert.match(out, /request req-/);
     b.kill();

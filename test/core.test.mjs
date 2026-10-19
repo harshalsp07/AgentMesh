@@ -4,6 +4,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import { rmSafe } from './cleanup.mjs';
 
 const PORT = '7781';
 const HUB = `http://localhost:${PORT}`;
@@ -29,7 +30,7 @@ before(async () => {
   throw new Error('hub did not start');
 });
 
-after(async () => { hub.kill(); await sleep(300); rmSync('.mesh-test', { recursive: true, force: true }); });
+after(async () => { hub.kill(); await rmSafe('.mesh-test'); });
 
 describe('intent validation', () => {
   it('rejects missing goal/paths with 400', async () => {

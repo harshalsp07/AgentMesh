@@ -23,6 +23,9 @@ import { MACPKernel } from './macp.mjs';
 import { MerkleDAG } from './dag.mjs';
 import { P2PSwarmCoordinator } from './p2p.mjs';
 import { generateAgentCard, handleA2ARpc } from './a2a.mjs';
+import { createTask, claimTask, setTask, listTasks, taskStats } from './tasks.mjs';
+import { botStatus, runBot } from './bot.mjs';
+import { exportAudit, verifyAudit } from './audit.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 export const PORT = +process.env.MESH_PORT || 7777;
@@ -43,10 +46,18 @@ const BOOT_T = Date.now();
 
 mkdirSync(`${DIR}/context`, { recursive: true });
 
-// ---- durable store: SQLite is the source of truth; JSONL stays as export ----
-const db = openDb(DIR);
-const S = { seq: 0, prev: '0', epoch: 1, intents: {}, presence: {}, inbox: {} };
+// P5: multi-repo mesh v0 — one hub, several repos. MESH_REPOS="name:path,name:path".
+// Intents/tasks may carry `repo:<name>`; the hub only tags events, repos stay on disk.
+const S = { seq: 0, prev: '0', epoch: 1, intents: {}, presence: {}, inbox: {}, buildStatus: {}, repos: parseRepos(process.env.MESH_REPOS) };
+function parseRepos(v) {
+  if (!v) return [];
+  return String(v).split(',').map((s) => {
+    const i = s.indexOf(':');
+    return i > 0 ? { name: s.slice(0, i).trim().slice(0, 32), dir: s.slice(i + 1).trim() } : null;
+  }).filter(Boolean).slice(0, 24);
+}
 const log = [];
+const db = openDb(DIR); // durable store: SQLite is the source of truth; JSONL stays as export
 const subs = new Set();
 const voice = { peers: {}, mail: {} }; // ephemeral signaling only: never persisted, 60s TTL
 const rates = new Map(); // actor -> [timestamps] for 429 guard
@@ -94,6 +105,8 @@ function validateDeclare(p) {
   if (!p || typeof p.goal !== 'string' || !p.goal.trim()) return 'goal (non-empty string) is required';
   if (!Array.isArray(p.paths) || !p.paths.length) return 'paths (non-empty array) is required';
   if (p.effect && !['none', 'additive', 'breaking'].includes(p.effect)) return 'effect must be none|additive|breaking';
+  if (p.services && !Array.isArray(p.services)) return 'services must be an array (e.g. ["port:3000","db:shared"])';
+  if (p.symbols && !Array.isArray(p.symbols)) return 'symbols must be an array of function/class ids';
   return null;
 }
 
@@ -131,7 +144,7 @@ function checkAuth(req, actor, scope) {
   if (!tok) return { ok: false, error: 'auth required: set Authorization: Bearer <token> (mesh token <actor>)' };
   let pub;
   try { pub = readPub(DIR); } catch { return { ok: false, error: 'hub keys missing' }; }
-  const v = verifyToken(pub, tok);
+  const v = verifyToken(pub, tok, Date.now(), { dir: DIR });
   if (!v.ok) return v;
   if (v.actor !== actor) return { ok: false, error: `token is for ${v.actor}, not ${actor}` };
   if (!scopeAllows(v.scope, scope)) return { ok: false, error: `token lacks scope ${scope}` };
@@ -169,9 +182,16 @@ function route(e) {
     const shared = meet(mine.contracts, other.uses);
     const drift = mine.effect === 'breaking' && shared.length > 0;
     const clash = overlap(mine.paths, other.paths);
+    const symHit = meet(mine.symbols || [], other.symbols || []).length > 0;
+    const svcHit = meet(mine.services || [], other.services || []).length > 0;
     if (drift) {
       tell(other.actor, 1, `BREAKING: ${shared.join(', ')} is being changed by ${e.actor} (intent ${mine.id}: ${mine.goal}).`);
       tell(e.actor, 2, `${other.actor} still uses ${shared.join(', ')}; keep the old version until they migrate.`);
+    } else if (svcHit) {
+      tell(e.actor, 1, `SERVICE OVERLAP: ${(mine.services || []).filter((s) => (other.services || []).includes(s)).join(', ')} claimed by ${other.actor} (intent ${other.id}) — pick another port or share via the mesh.`);
+      tell(other.actor, 2, `${e.actor} is claiming a service you use: ${mine.goal}`);
+    } else if (symHit) {
+      tell(e.actor, 1, `SYMBOL LEASE: ${meet(mine.symbols || [], other.symbols || []).join(', ')} also declared by ${other.actor} (intent ${other.id}).`);
     } else if (clash) {
       // Hard-lease block is enforced by the caller before emit; here we only warn for soft overlap.
       tell(e.actor, 1, `OVERLAP: ${other.actor} already holds ${other.paths.join(', ')} (intent ${other.id}).`);
@@ -194,6 +214,7 @@ function sheet(actor) {
     ...(pending.length
       ? pending.map((i) => `- ${meet(i.contracts, uses).join(', ')} PROPOSED CHANGE (breaking) by ${i.actor}, intent ${i.id}`)
       : ['- no pending changes']),
+    ...(me.some((i) => (i.services || []).length) ? [`## Services I claim`, ...me.filter((i) => (i.services || []).length).map((i) => `- ${i.id}: ${(i.services || []).join(', ')}`)] : []),
     '## Near me',
     ...(others.length ? others.map((i) => `- ${i.actor}: ${i.goal} (${i.paths.join(', ')})`) : ['- nobody']),
     '',
@@ -230,12 +251,13 @@ setInterval(() => {
 const readBody = (req, res) => new Promise((resolve) => {
   let b = '', tooBig = false;
   req.on('data', (c) => {
+    if (tooBig) return; // drain-discard the rest so the client can still read the 413
     b += c;
-    if (b.length > BODY_LIMIT && !tooBig) {
+    if (b.length > BODY_LIMIT) {
       tooBig = true;
       try { res.writeHead(413, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'body > 1MB' })); } catch {}
-      req.destroy();
       resolve(null);
+      req.resume(); // keep the socket healthy; no RST race with undici
     }
   });
   req.on('end', () => {
@@ -244,6 +266,14 @@ const readBody = (req, res) => new Promise((resolve) => {
   });
 });
 const body = readBody;
+
+// decode query params of a raw request url ('/api/tasks?owner=x' -> {owner:'x'})
+const urlParams = (raw) => {
+  try {
+    const i = String(raw).indexOf('?');
+    return i < 0 ? {} : Object.fromEntries(new URLSearchParams(String(raw).slice(i + 1)));
+  } catch { return {}; }
+};
 
 export function createServer() {
   const server = http.createServer(async (req, res) => {
@@ -289,14 +319,16 @@ export function createServer() {
           const paths = normStrs(payload.paths);
           const contracts = normStrs(payload.contracts);
           const uses = normStrs(payload.uses);
+          const services = normStrs(payload.services);
+          const symbols = normStrs(payload.symbols);
           // Boundary enforcement: hard lease blocks overlapping writes
-          const blocker = live().find((i) => i.hard && i.actor !== actor && overlap(paths, i.paths));
+          const blocker = live().find((i) => i.hard && i.actor !== actor && (overlap(paths, i.paths) || meet(services, i.services || []).length > 0));
           if (blocker) {
             emit(actor, 'policy.denied', { reason: 'hard-lease', by: blocker.actor, intent: blocker.id });
             return json({ ok: false, error: `blocked by hard lease of ${blocker.actor} (intent ${blocker.id})`, tier: 0 }, 409);
           }
           const id = `in-${S.seq + 1}`;
-          const e = emit(actor, 'intent.declared', { id, effect: 'none', contracts: [], uses: [], hard: false, ...payload, paths, contracts, uses });
+          const e = emit(actor, 'intent.declared', { id, effect: 'none', contracts: [], uses: [], services: [], symbols: [], hard: false, ...payload, paths, contracts, uses, services, symbols });
           route(e);
           return json({ ok: true, intent: id, seq: e.seq });
         }
@@ -365,6 +397,8 @@ export function createServer() {
       if (route0 === 'verify') return json(dbVerify(db, hashOf));
       if (route0 === 'metrics') {
         const byKind = metricAll(db);
+        let ttfc = null;
+        try { ttfc = kvGet(db, 'ttfc_ms') ? Math.round(+kvGet(db, 'ttfc_ms') / 1000) : null; } catch {}
         return json({
           ok: true, uptime_s: Math.floor((Date.now() - BOOT_T) / 1000),
           events_total: byKind['events:total'] || log.length,
@@ -372,6 +406,9 @@ export function createServer() {
           presence: Object.keys(S.presence).length,
           inbox_depth: Object.values(S.inbox).reduce((n, q) => n + q.length, 0),
           auth: authEnforced(DIR) ? 'enforced' : 'open',
+          ttfc_s: ttfc,
+          tasks: taskStats(DIR),
+          conductor: botStatus(DIR).name,
         });
       }
       if (route0 === 'ready') {
@@ -411,8 +448,12 @@ export function createServer() {
             pins: (col.pins || []).slice(-10),
             decisions: (col.decisions || []).slice(-5),
             pairs: (col.pairs || []).filter((p) => p.active),
+            tasks: taskStats(DIR),
+            conductor: botStatus(DIR).name,
+            repos: S.repos,
             collisions, intents: liveIntents, presence: S.presence,
-          });
+             buildStatus: S.buildStatus,
+           });
         }
         if (req.method === 'GET' && api === 'events') {
           const m = (req.url || '').match(/limit=(\d+)/);
@@ -431,6 +472,8 @@ export function createServer() {
           if (!to || !text) return json({ ok: false, error: 'to, text required' }, 400);
           const r = createRequest(DIR, { from: actor, to, text, ref });
           emit(actor, 'request.created', { id: r.id, to, text: r.text, status: r.status });
+          // TTFC (time-to-first-collaboration): first request between two DISTINCT actors.
+          try { if (!kvGet(db, 'ttfc_ms')) kvSet(db, 'ttfc_ms', String(Date.now() - BOOT_T)); } catch {}
           return json({ ok: true, ...r });
         }
         if (req.method === 'POST' && api === 'request-respond') {
@@ -540,6 +583,38 @@ export function createServer() {
           voiceHeartbeat(voice.peers, actor);
           return json({ ok: true, signals: voiceDrain(voice.mail, actor), peers: Object.keys(voice.peers) });
         }
+        // ---- build gate: block until every connected agent reports done ----
+        if (req.method === 'POST' && api === 'build-status') {
+          const p = await readBody(req, res);
+          if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+          const { actor, done, note } = p;
+          if (!guard(actor, 'build')) return;
+          S.buildStatus[actor] = { done: !!done, note: String(note || ''), ts: Date.now() };
+          emit(actor, 'build.status', { done: !!done, note: String(note || '') });
+          return json({ ok: true });
+        }
+        if (req.method === 'POST' && api === 'build-gate') {
+          const p = await readBody(req, res);
+          if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+          const { actor, timeout } = p;
+          if (!guard(actor, 'build')) return;
+          const deadline = Date.now() + Math.min(+(timeout || 60000), 120000);
+          const connected = () => Object.keys(S.presence).filter((a) => Date.now() - (S.presence[a].seen || 0) < 15000);
+          while (Date.now() < deadline) {
+            const agents = connected();
+            const allDone = agents.length > 0 && agents.every((a) => S.buildStatus[a]?.done);
+            if (allDone) break;
+            await new Promise((r) => setTimeout(r, 500));
+          }
+          const agents = connected();
+          const statuses = agents.map((a) => ({ actor: a, done: !!S.buildStatus[a]?.done, note: S.buildStatus[a]?.note || '', ts: S.buildStatus[a]?.ts || null }));
+          const timedOut = !agents.every((a) => S.buildStatus[a]?.done);
+          const abort = statuses.some((s) => !s.done);
+          return json({ ok: !abort, abort, timedOut, agents: statuses });
+        }
+        if (req.method === 'GET' && api === 'build-status') {
+          return json({ ok: true, statuses: S.buildStatus });
+        }
         // ---- Next-Gen Synchronization API (CRDT, MACP, DAG, P2P) ----
         if (api === 'crdt') {
           if (req.method === 'GET') return json({ ok: true, ...crdtDoc.toJSON() });
@@ -619,6 +694,84 @@ export function createServer() {
             if (p.action === 'leave' && p.actor) return json(p2pSwarm.leave(p.actor));
             if (p.action === 'signal' && p.from && p.to && p.type) return json(p2pSwarm.sendSignal(p.from, p.to, p.type, p.data));
             return json({ ok: false, error: 'action (join|leave|signal) required' }, 400);
+          }
+        }
+        // ---- P3: shared task board (atomic claims; single-threaded reduce) ----
+        if (api === 'tasks') {
+          if (req.method === 'GET') {
+            const q = urlParams(req.url);
+            return json({ ok: true, tasks: listTasks(DIR, { owner: q.owner || '', status: q.status || '', repo: q.repo || '' }), stats: taskStats(DIR) });
+          }
+          if (req.method === 'POST') {
+            const p = await readBody(req, res);
+            if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            const { actor, action, id, title, paths, deps, status, note, wip } = p;
+            if (!guard(actor, 'tasks')) return;
+            if (action === 'create') {
+              const r = createTask(DIR, { title, by: actor, paths, deps, repo: p.repo || '' });
+              if (!r.ok) return json(r, 400);
+              emit(actor, 'task.created', { id: r.task.id, title: r.task.title, paths: r.task.paths });
+              return json(r);
+            }
+            if (action === 'claim') {
+              const r = claimTask(DIR, { id, actor, wip: +wip || 2 });
+              if (!r.ok) return json(r, 409);
+              emit(actor, 'task.claimed', { id, actor });
+              return json(r);
+            }
+            if (action === 'set') {
+              const r = setTask(DIR, { id, actor, status, note });
+              if (!r.ok) return json(r, 400);
+              emit(actor, `task.${status}`, { id, actor, note: r.task?.note || '' });
+              return json(r);
+            }
+            return json({ ok: false, error: 'action (create|claim|set) required' }, 400);
+          }
+        }
+        // ---- P1: the Conductor (our first-class bot) ----
+        if (api === 'bot') {
+          if (req.method === 'GET') return json(botStatus(DIR));
+          if (req.method === 'POST') {
+            const p = await readBody(req, res);
+            if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            const { actor, goal, dry, tasksInput, budgetCoins, budgetMin, spawner } = p;
+            if (!guard(actor, 'bot')) return;
+            if (!goal) return json({ ok: false, error: 'goal required' }, 400);
+            // live CLIs stay an operator choice (policy); hub-level runs are dry by default
+            const r = await runBot(DIR, { goal, dry: !(dry === false && process.env.MESH_BOT_LIVE === '1'), tasksInput, budgetCoins: +budgetCoins || 20, budgetMin: +budgetMin || 10, ...(typeof spawner === 'string' ? { spawnerName: spawner } : {}) });
+            emit(actor, r.ok ? 'bot.run_done' : 'bot.run_failed', { id: r.run?.id, status: r.run?.status, error: r.error || null });
+            return json(r);
+          }
+        }
+        // ---- P6: verifiable audit export (hash chain + merkle root) ----
+        if (api === 'memory') {
+          const p0 = urlParams(req.url);
+          if (req.method === 'GET') {
+            const actor = p0.actor ? decodeURIComponent(p0.actor) : 'system';
+            if (!guard(actor, 'memory')) return;
+            try { const { memoryGet } = await import('./bot.mjs'); const md = memoryGet(DIR, p0.key || ''); return json({ ok: true, key: p0.key || null, memory: md }); }
+            catch (e) { return json({ ok: false, error: String(e?.message || e) }, 500); }
+          }
+          if (req.method === 'POST') {
+            const p = await readBody(req, res);
+            if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            if (!guard(p.actor, 'memory')) return;
+            if (!p.text) return json({ ok: false, error: 'text required' }, 400);
+            const { memorySet } = await import('./bot.mjs');
+            const r = memorySet(DIR, p.actor, p.text);
+            emit(p.actor, 'memory.set', { bytes: r.bytes });
+            return json(r);
+          }
+        }
+        // ---- P6: verifiable audit export (hash chain + merkle root) ----
+        if (api === 'audit') {
+          if (req.method === 'GET') {
+            const q = urlParams(req.url);
+            if (!guard(q.actor ? decodeURIComponent(q.actor) : 'system', 'audit')) return;
+            const from = +(q.from || 0);
+            const to = +(q.to || Date.now());
+            const a = exportAudit(log, { from, to });
+            return json({ ok: true, merkleRoot: a.merkleRoot, summary: a.summary, events: a.events.length, bundle: a });
           }
         }
         return json({ ok: false, error: 'unknown api' }, 404);

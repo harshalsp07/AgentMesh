@@ -20,8 +20,8 @@ const strs = { type: 'array', items: str };
 
 const TOOLS = {
   mesh_declare_intent: {
-    description: 'Declare what you are about to change BEFORE editing. Returns overlap / breaking-change warnings.',
-    inputSchema: { type: 'object', required: ['goal', 'paths'], properties: { goal: str, paths: strs, contracts: strs, uses: strs, effect: { enum: ['none', 'additive', 'breaking'] } } },
+    description: 'Declare what you are about to change BEFORE editing. Returns overlap / breaking-change / service / symbol warnings.',
+    inputSchema: { type: 'object', required: ['goal', 'paths'], properties: { goal: str, paths: strs, contracts: strs, uses: strs, services: { type: 'array', items: str, description: 'ports/dbs/env this work needs, e.g. ["port:3000","db:shared"]' }, symbols: { type: 'array', items: str, description: 'function/class ids you will touch' }, effect: { enum: ['none', 'additive', 'breaking'] } } },
     run: (a) => post('intent.declare', a),
   },
   mesh_release: {
@@ -102,7 +102,52 @@ const TOOLS = {
       return r.ok ? `CRDT symbol ${a.key} updated to "${a.value}" (Lamport: ${r.op?.lamport})` : `CRDT update failed: ${r.error}`;
     },
   },
-};
+  mesh_build_status: {
+     description: 'Report your done/not-done status for the current build gate (pm build).',
+     inputSchema: { type: 'object', properties: { done: { type: 'boolean' }, note: str } },
+     run: async (a) => {
+       const r = await fetch(`${HUB}/api/build-status`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, done: !!a.done, note: a.note || '' }) }).then((x) => x.json()).catch((e) => ({ ok: false, error: e.message }));
+       return r.ok ? `build status reported: ${a.done ? 'DONE' : 'NOT DONE'}${a.note ? ' — ' + a.note : ''}` : `build status failed: ${r.error}`;
+     },
+   },
+  mesh_task_create: {
+    description: 'Create a task on the shared cross-harness board (scoped to paths so claiming is collision-aware).',
+    inputSchema: { type: 'object', required: ['title'], properties: { title: str, paths: strs, deps: strs, note: str } },
+    run: (a) => fetch(`${HUB}/api/tasks`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, action: 'create', title: a.title, paths: a.paths || [], deps: a.deps || [], note: a.note || '' }) }).then((x) => x.json()).then((r) => r.ok ? `task ${r.task.id} created (${r.task.status})` : `task create failed: ${r.error}`),
+  },
+  mesh_task_list: {
+    description: 'List tasks on the shared board you could claim (deps + WIP respected).',
+    inputSchema: { type: 'object', properties: { status: { enum: ['pending', 'in-progress', 'done', 'blocked'] } } },
+    run: (a) => fetch(`${HUB}/api/tasks${a?.status ? `?status=${a.status}` : ''}`, { headers: { ...authH() } }).then((x) => x.json()).then((r) => r.ok ? (r.tasks.map((t) => `${t.id} [${t.status}] ${t.title}${t.readyToClaim ? ' ⚡ready' : ''}`).join('\n') || '(no tasks)') : `failed: ${r.error}`),
+  },
+  mesh_task_claim: {
+    description: 'Atomically claim a task (others who claim the same task get a 409, deterministically).',
+    inputSchema: { type: 'object', required: ['id'], properties: { id: str, wip: { type: 'number' } } },
+    run: (a) => fetch(`${HUB}/api/tasks`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, action: 'claim', id: a.id, wip: a.wip }) }).then((x) => x.json()).then((r) => r.ok ? `claimed ${a.id}: ${r.task.title} (in progress)` : `claim failed: ${r.error}`),
+  },
+  mesh_task_set: {
+    description: 'Update a task status: in-progress | done | blocked (done requires deps to be done).',
+    inputSchema: { type: 'object', required: ['id', 'status'], properties: { id: str, status: { enum: ['pending', 'in-progress', 'done', 'blocked'] }, note: str } },
+    run: (a) => fetch(`${HUB}/api/tasks`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, action: 'set', id: a.id, status: a.status, note: a.note }) }).then((x) => x.json()).then((r) => r.ok ? `${a.id} → ${r.task.status}` : `set failed: ${r.error}`),
+  },
+  mesh_bot: {
+    description: 'Summon the Conductor: mesh-native agent (scout → dispatch → referee → harness). dry-run by default.',
+    inputSchema: { type: 'object', required: ['action'], properties: { action: { enum: ['status', 'run'] }, goal: str, tasksInput: { type: 'array', items: { type: 'object' } }, budgetCoins: { type: 'number' } } },
+    run: (a) => a.action === 'status'
+      ? fetch(`${HUB}/api/bot`, { headers: { ...authH() } }).then((x) => x.json()).then((r) => JSON.stringify(r).slice(0, 900))
+      : fetch(`${HUB}/api/bot`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, goal: a.goal || '', dry: true, tasksInput: a.tasksInput, budgetCoins: a.budgetCoins }) }).then((x) => x.json()).then((r) => r.ok ? `conductor ${r.run.id}: ${r.run.phases.map((p) => p.name).join('→')} · tasks ${r.tasks.map((t) => t.id).join(', ')}${r.harness ? ` · harness ${r.harness.cli || 'printer mode'}` : ''}` : `bot run failed: ${r.error}`),
+  },
+  mesh_memory_get: {
+    description: "Read this repo's long-term memory (conventions, gotchas, decisions learned by the Conductor).",
+    inputSchema: { type: 'object', properties: { key: str } },
+    run: (a) => fetch(`${HUB}/api/memory?key=${encodeURIComponent(a?.key || '')}&actor=${ACTOR}`, { headers: { ...authH() } }).then((x) => x.json()).then((r) => r.ok ? (r.memory || '(memory empty — mesh_memory_set seeds it)') : `failed: ${r.error}`),
+  },
+  mesh_memory_set: {
+    description: 'Append a learned convention to repo memory (visible to every harness on the mesh).',
+    inputSchema: { type: 'object', required: ['text'], properties: { text: str } },
+    run: (a) => fetch(`${HUB}/api/memory`, { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ actor: ACTOR, text: a.text }) }).then((x) => x.json()).then((r) => r.ok ? `memory entry saved (${r.bytes} bytes total)` : `failed: ${r.error}`),
+  },
+ };
 
 const send = (m) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');
 

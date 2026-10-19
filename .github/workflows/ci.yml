@@ -10,9 +10,35 @@ jobs:
       - run: node --version && git --version
       - run: npm test
       - run: npm run demo:all
+      - name: Conductor demo (dry, asserted)
+        run: node demo-bot.mjs
+      - name: Browser vendor bundle is fresh (crdt+macp kernels)
+        run: |
+          node scripts/bundle-sim.mjs
+          git diff --exit-code -- site/vendor.mjs
+      - name: Publish readiness doctor
+        run: node scripts/publish-check.mjs
       - run: MESH_DIR=.mesh-ci node src/hub.mjs & sleep 2
       - run: node scripts/load.mjs 4 3
       - run: pkill -f "src/hub.mjs" || true; rm -rf .mesh-ci
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --version && git --version
+      # npm test uses --test-force-exit (Windows test-runner hang guard)
+      - run: npm test
+        shell: cmd
+      - name: Conductor demo on Windows
+        run: node demo-bot.mjs
+      - name: Mesh init lands on a foreign repo (TTFC)
+        run: |
+          node bin/mesh init ci-target --actor ci-win --hub http://127.0.0.1:7777
+          node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('ci-target/.agents/mcp_config.json','utf8'));if(!c.mcpServers||!c.mcpServers.agentmesh)process.exit(1);console.log('mesh init ok')"
+      - name: Cleanup
+        run: powershell -Command "Remove-Item -Recurse -Force 'ci-target' -ErrorAction SilentlyContinue"
   docker:
     runs-on: ubuntu-latest
     steps:

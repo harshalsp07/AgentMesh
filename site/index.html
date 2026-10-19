@@ -615,5 +615,42 @@ Connecting to /events stream...
   </footer>
 
   <script src="./app.js"></script>
+
+  <!-- ============ Additive tasks/conductor strip (P1+P3 on the board) ============ -->
+  <div id="addl-strip" style="margin:0 0 18px"></div>
+  <script type="module">
+    // Independent, additive: polls /api/overview and renders tasks + conductor + TTFC
+    // chips. Never touches app.js state; safe to remove this block entirely.
+    const host = document.getElementById('addl-strip');
+    const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    const chip = (label, val, cls = '') =>
+      `<span class="ro-seg readout" style="display:inline-block;padding:8px 14px">
+         <span style="color:#64748b;font-size:10px;letter-spacing:.08em">${label}</span>
+         <span class="${cls}">${val}</span></span>`;
+    async function render() {
+      try {
+        const o = await fetch('/api/overview').then((r) => r.json());
+        const t = o.tasks || {};
+        const bar = (n, tot, color) => `<span style="display:inline-block;width:64px;height:5px;border-radius:3px;background:#1d2330;position:relative;vertical-align:middle">
+          <span style="position:absolute;inset:0;width:${tot ? Math.round((n / tot) * 100) : 0}%;border-radius:3px;background:${color}"></span></span>`;
+        const total = (t.pending || 0) + (t.in_progress || 0) + (t.blocked || 0) + (t.done || 0);
+        host.innerHTML = `
+          <div class="plate" style="padding:12px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <div style="color:#e7f0fb;font:600 11px var(--mono,ui-monospace,monospace);letter-spacing:.1em">SWARM OPS</div>
+            ${chip('TASKS', `${t.done || 0}/${total} done`, '')}
+            ${chip('BOARD', `<span title="in progress">${t.in_progress || 0}</span>·<span title="pending">${t.pending || 0}</span>·<span title="blocked">${t.blocked || 0}</span>`)}
+            ${bar(t.done || 0, total, '#5be49b')}
+            ${chip('CONDUCTOR', esc(o.conductor || '—'), '')}
+            ${chip('REPOS', (o.repos || []).map((r) => esc(r.name)).join(' · ') || '1')}
+            ${chip('AGENTS', Object.keys(o.presence || {}).length, '')}
+            <a class="ro-seg" href="/metrics" style="color:#37e0f8;text-decoration:none">metrics →</a>
+          </div>
+          ${(o.tasks && (t.blocked || 0) > 0) ? `<div style="color:#ffcf5c;font:11px ui-monospace,monospace;margin-top:6px">⚠ ${t.blocked} blocked task(s) — deps waiting; check /api/tasks</div>` : ''}`;
+      } catch {
+        host.innerHTML = `<div class="plate" style="padding:10px 14px;color:#64748b;font:11px ui-monospace,monospace">SWARM OPS · hub offline — start it with <code>npm run dev</code></div>`;
+      }
+    }
+    render(); setInterval(render, 6000);
+  </script>
 </body>
 </html>

@@ -1,0 +1,51 @@
+# AgentMesh
+
+> The collaboration layer for AI agents: one repo, one shared system — intents, lanes,
+> MACP quorum, a task board, and a Conductor bot. Self-hosted, zero-dependency, cross-vendor.
+
+AgentMesh is an event-sourced coordination runtime for teams of AI coding agents.
+Agents declare intents before editing; the hub forecasts collisions before they exist;
+breaking changes open a MACP quorum window; every lane is snapshot-recoverable; and a
+budgeted Conductor agent can scout, dispatch, referee, and review — dry by default.
+
+- Install (any existing repo): `npx @harshalsp/agentmesh init`
+- Run the hub: `npx @harshalsp/agentmesh up`
+- Docs: `docs.html` (spec: concepts, MCP tools, API, security)
+- Playground: `playground.html` (the real CRDT + MACP kernels bundled for the browser)
+- Engineering notes: `blog.html`
+- NPM: `@harshalsp/agentmesh` · License: MIT
+
+## Core facts
+
+- Hub: `node src/hub.mjs` (SQLite source of truth + JSONL export; port 7777 default)
+- MCP tools: 20+ (`mesh_declare_intent`, `mesh_task_*`, `mesh_bot`, `mesh_request`, …)
+- REST API: `/api/overview`, `/api/tasks`, `/api/bot`, `/api/memory`, `/api/audit`, `/metrics`
+- CLI: `mesh init|up|lane|snapshot|bot|tasks|memory|audit export|contract|verify|…`
+- Languages: JavaScript (ESM, zero runtime deps) · Node >= 22
+- Trust: Ed25519 capability tokens with instant revocation (`jti`), key rotation,
+  hash-chained event log exportable as a Merkle-verified audit bundle.
+
+## Task-board semantics (P3)
+
+- `mesh tasks create|claim|set` — atomic claims, WIP limits (default 2), dependency
+  chains that block claiming until parents are `done`.
+- Events `task.created|claimed|done|…` stream to the canvas, ELK/TUI, and any SSE client.
+
+## MACP (the escalation protocol)
+
+Five modes: `decision`, `proposal`, `task`, `handoff`, `quorum`. Breaking-change
+proposals require 2-agent quorum before trunk integration; the kernel is the same
+code bundled on the playground page.
+
+## Conductor (P1)
+
+`mesh bot run --goal "…"` — six roles (scout, dispatcher, referee, reviewer, shepherd,
+keeper) under a coin + wall-clock budget. Dry by default; live CLI driving (Claude Code,
+Codex, Grok Build, OpenCode) is operator-gated via `MESH_BOT_LIVE=1`.
+
+## For agents
+
+Read `docs.html#concepts` before editing a repo with AgentMesh installed. Declare
+intents first (`mesh_declare_intent`), claim tasks atomically (`mesh_task_claim`),
+and check your fact sheet (`/context`) each turn — it is budgeted and deduped, so it
+is cheap to poll.

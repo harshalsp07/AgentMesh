@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentMesh — the collaboration layer for AI agents</title>
+  <meta name="description" content="AgentMesh is the protocol that lets Antigravity, Codex, Cursor, Claude Code and Grok agents collaborate on one repo across laptops — intent leases, copy-on-write lanes, MACP quorum, semantic CRDT, harness-gated trunk. Self-hosted. Your code never leaves your machines.">
+  <meta name="theme-color" content="#0c0d10">
+
+  <!-- OpenGraph / Social Metadata -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AgentMesh — the collaboration layer for AI agents">
+  <meta property="og:description" content="One repo, many harnesses, zero silent overwrites. Intent-before-edit, MeshVCS lanes, MACP quorum, semantic CRDT, harness-gated trunk. Self-hosted on your machines.">
+
+  <!-- No webfonts: system condensed + mono stacks (offline-fast, no FOUT) -->
+  <link rel="stylesheet" href="./style.css">
+
+  <style>
+    /* ---------- landing-specific ---------- */
+    .landing-main { max-width: 1060px; }
+
+    .sec { margin-top: 54px; }
+    .sec-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line);
+      padding-bottom: 10px; margin-bottom: 16px;
+    }
+    .sec-head h2 { font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--txt); }
+    .sec-head h2::before { content: "▪ "; color: var(--signal); }
+    .sec-head .side-note { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em; color: var(--dim); }
+
+    /* ---------- hero ---------- */
+    .hero { padding-top: 34px; }
+    .hero h1 { font-size: clamp(1.9rem, 4.6vw, 3.1rem); line-height: 1.08; letter-spacing: 0.01em; max-width: 720px; }
+    .hero h1 .hl { color: var(--signal); font-style: normal; }
+    .hero-sub { color: var(--mut); font-size: 1rem; max-width: 660px; margin: 14px 0 20px; }
+    .hero .readout { max-width: 720px; }
+
+    .hero-demo { position: relative; aspect-ratio: 960 / 300; border: 1px solid var(--line); border-radius: var(--r); background: #0a0b0e; overflow: hidden; margin-top: 18px; }
+    .hero-demo svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .demo-caption { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--dim); margin-top: 8px; }
+
+    .lm-flash, .lm-chip { position: absolute; pointer-events: none; opacity: 0; white-space: nowrap; max-width: 96%; }
+    .lm-flash {
+      left: 73%; top: 35.4%; transform: translate(-50%, -50%) scale(0.8);
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+      background: var(--signal); color: #140800; border: 1px solid var(--signal-deep);
+      border-radius: 2px; padding: 5px 10px;
+      animation: lm-overlap 12s linear infinite;
+    }
+    .lm-chip {
+      left: 61.5%; top: 93%; transform: translateX(-50%) translateY(8px);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em;
+      background: var(--paper); color: var(--paper-ink);
+      border-left: 4px solid var(--ok); border-radius: 2px; padding: 6px 12px;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+      animation: lm-chip 12s linear infinite;
+    }
+
+    /* SVG fills via classes (var() safe) */
+    .sv-board { fill: var(--ink); stroke: var(--line); stroke-width: 1.5; }
+    .sv-ghost-line { fill: none; stroke: var(--line-soft); stroke-dasharray: 4 6; }
+    .sv-paper { fill: var(--paper); }
+    .sv-edge-ok { fill: var(--ok); }
+    .sv-edge-sig { fill: var(--signal); }
+    .sv-edge-warn { fill: var(--warn); }
+    .sv-label { fill: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.22em; }
+    .sv-tiny { fill: var(--dim); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; }
+    .sv-ok { fill: var(--ok); }
+    .sv-strip-actor { fill: var(--paper-ink); font-family: var(--mono); font-size: 12px; font-weight: 700; }
+    .sv-strip-what { fill: var(--paper-dim); font-family: var(--mono); font-size: 11px; }
+    .sv-strip-lease { fill: var(--paper-dim); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; }
+    .sv-strip-lease.hot { fill: var(--signal-deep); font-weight: 700; }
+    .sv-agent { fill: var(--txt); font-family: var(--mono); font-size: 13px; font-weight: 700; }
+    .sv-sub { fill: var(--dim); font-family: var(--mono); font-size: 11px; }
+    .sv-dot-ui { fill: var(--ok); stroke: rgba(0, 0, 0, 0.35); }
+    .sv-dot-sv { fill: var(--signal); stroke: rgba(0, 0, 0, 0.35); }
+    .sv-dot-txt { fill: #000; font-family: var(--mono); font-size: 11px; font-weight: 700; }
+    .sv-track { fill: #06070a; stroke: var(--line-soft); }
+    .sv-trunkfill { fill: var(--signal); }
+    .sv-conduit { stroke: var(--mut); stroke-width: 1.4; stroke-dasharray: 5 7; fill: none; animation: lm-carrier 1.1s linear infinite; }
+    .lm-pulse { animation: lm-pulse 2.4s ease-in-out infinite; }
+    .lm-a, .lm-b, .lm-c { transform-box: fill-box; animation: 12s linear infinite; }
+    .lm-a { animation-name: lm-in-a; }
+    .lm-b { animation-name: lm-in-b; }
+    .lm-c { animation-name: lm-in-c; }
+    .lm-trunk { transform-box: fill-box; transform-origin: left center; animation: lm-trunk 12s linear infinite; }
+
+    @keyframes lm-in-a { 0%, 2% { opacity: 0; transform: translateX(-10px); } 4.5%, 86% { opacity: 1; transform: translateX(0); } 90%, 100% { opacity: 0; transform: translateX(-6px); } }
+    @keyframes lm-in-b { 0%, 7% { opacity: 0; transform: translateX(-10px); } 9.5%, 86% { opacity: 1; transform: translateX(0); } 90%, 100% { opacity: 0; transform: translateX(-6px); } }
+    @keyframes lm-in-c { 0%, 12% { opacity: 0; transform: translateX(-10px); } 14.5%, 86% { opacity: 1; transform: translateX(0); } 90%, 100% { opacity: 0; transform: translateX(-6px); } }
+    @keyframes lm-overlap {
+      0%, 15% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      17%, 28% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      20%, 25% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+      31%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    }
+    @keyframes lm-chip { 0%, 34% { opacity: 0; transform: translateX(-50%) translateY(8px); } 37%, 86% { opacity: 1; transform: translateX(-50%) translateY(0); } 90%, 100% { opacity: 0; transform: translateX(-50%) translateY(6px); } }
+    @keyframes lm-trunk { 0%, 36% { transform: scaleX(0); opacity: 0; } 40% { opacity: 1; transform: scaleX(0.35); } 58%, 86% { transform: scaleX(1); opacity: 1; } 90%, 100% { transform: scaleX(1); opacity: 0; } }
+    @keyframes lm-carrier { to { stroke-dashoffset: -24; } }
+    @keyframes lm-pulse { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-demo *, .lm-flash, .lm-chip, .sv-conduit, .lm-pulse { animation: none !important; }
+      .lm-flash, .lm-chip { opacity: 1; }
+    }
+
+    .install-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .install-box { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--r); background: #0a0b0e; overflow: hidden; }
+    .install-box code { display: flex; align-items: center; padding: 9px 14px; color: var(--signal); font-size: 0.86rem; letter-spacing: 0.02em; }
+    .install-box .btn-primary { border-radius: 0; border: 0; border-left: 1px solid var(--line); }
+
+    /* ---------- problem strip ---------- */
+    .prob-card h3 { font-size: 0.92rem; margin: 6px 0 6px; }
+    .prob-card .idx { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--dim); }
+    .prob-card p { font-size: 0.84rem; color: var(--mut); }
+    .am-hot { border-top: 3px solid var(--signal); }
+    .am-hot .idx { color: var(--signal); }
+
+    /* ---------- six pillars ---------- */
+    .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .pillar { display: block; text-decoration: none; color: var(--txt); background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--dim); border-radius: var(--r); padding: 12px 14px; }
+    .pillar:hover { border-top-color: var(--signal); }
+    .pillar .num { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--dim); }
+    .pillar h3 { font-size: 0.9rem; margin: 6px 0 4px; }
+    .pillar p { font-size: 0.8rem; color: var(--mut); }
+    .pillar code { color: var(--txt); font-size: 0.74rem; }
+
+    /* ---------- cross-vendor band ---------- */
+    .vendor-band { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; text-align: center; }
+    .vendor-chip { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; border: 1px solid var(--line); background: var(--panel); color: var(--txt); border-radius: var(--r); padding: 7px 13px; }
+    .vendor-dot { color: var(--signal); font-weight: 700; }
+    .vendor-line { text-align: center; font-size: 0.92rem; color: var(--mut); margin: 14px 0 10px; }
+    .vendor-line b { color: var(--txt); }
+    .vendor-badges { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+    /* ---------- compare table ---------- */
+    .am-table-wrap { overflow-x: auto; }
+    table.am-table td { font-size: 0.78rem; color: var(--mut); min-width: 120px; }
+    table.am-table td.cat { color: var(--txt); font-weight: 700; min-width: 190px; }
+    table.am-table tr.am-me td { background: var(--panel-2); border-top: 1px solid var(--signal); border-bottom: 1px solid var(--signal); color: var(--txt); }
+    table.am-table tr.am-me td.cat { border-left: 3px solid var(--signal); }
+    table.am-table tr.am-me td b { color: var(--signal); letter-spacing: 0.1em; }
+    .am-note { margin-top: 12px; font-family: var(--mono); font-size: 0.7rem; line-height: 1.5; color: var(--mut); border-left: 3px solid var(--warn); background: var(--ink); border-radius: var(--r); padding: 10px 14px; }
+    .am-note b { color: var(--txt); }
+
+    /* ---------- conductor ---------- */
+    .role-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; padding: 0; }
+    .role-chips li { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 2px; padding: 5px 9px; color: var(--txt); background: var(--ink); }
+    .conduct-bullets { list-style: none; padding: 0; display: grid; gap: 8px; }
+    .conduct-bullets li { font-size: 0.85rem; color: var(--mut); padding-left: 16px; position: relative; }
+    .conduct-bullets li::before { content: "▪"; position: absolute; left: 0; color: var(--signal); }
+    .conduct-bullets code { color: var(--txt); font-size: 0.76rem; }
+    .conduct-copy > p { font-size: 0.86rem; color: var(--mut); margin-bottom: 10px; }
+    .conduct-copy code { color: var(--txt); font-size: 0.78rem; }
+
+    .term { background: #0a0b0e; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+    .term-title { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--dim); }
+    .term-title .t-live { color: var(--ok); }
+    .term-body { padding: 12px 14px; font-family: var(--mono); font-size: 0.76rem; line-height: 1.7; color: var(--mut); overflow-x: auto; white-space: pre; }
+    .term-body .t-cmd { color: var(--txt); font-weight: 700; }
+    .term-body .t-cmd::before { content: "$ "; color: var(--signal); }
+    .term-body .t-role { color: var(--signal); font-weight: 700; }
+    .term-body .t-ok { color: var(--ok); }
+    .term-body .t-dim { color: var(--dim); }
+
+    /* ---------- FAQ ---------- */
+    .faq-list { display: grid; gap: 8px; }
+    .faq-item { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); }
+    .faq-item[open] { border-color: var(--mut); }
+    .faq-item summary { cursor: pointer; list-style: none; padding: 12px 16px; font-size: 0.92rem; font-weight: 700; color: var(--txt); }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::before { content: "+ "; font-family: var(--mono); color: var(--signal); font-weight: 400; }
+    .faq-item[open] summary::before { content: "− "; }
+    .faq-a { padding: 0 16px 14px; font-size: 0.86rem; color: var(--mut); }
+    .faq-a code { color: var(--txt); font-size: 0.78rem; }
+
+    /* ---------- final CTA ---------- */
+    .cta-band { border: 1px solid var(--line); border-top: 3px solid var(--signal); background: var(--panel-2); border-radius: var(--r); padding: 30px 22px; text-align: center; margin-top: 56px; }
+    .cta-band h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); letter-spacing: 0.01em; }
+    .cta-band .cta-sub { color: var(--mut); font-size: 0.9rem; max-width: 560px; margin: 10px auto 18px; }
+    .cmd-big { display: inline-flex; align-items: stretch; gap: 10px; justify-content: center; flex-wrap: wrap; border: 1px solid var(--line); background: #0a0b0e; border-radius: var(--r); padding: 12px 14px; }
+    .cmd-big code { display: flex; align-items: center; font-family: var(--mono); font-size: clamp(0.85rem, 2.4vw, 1.15rem); font-weight: 700; color: var(--signal); }
+    .cta-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+    .foot-links { display: flex; gap: 16px; flex-wrap: wrap; }
+    @media (max-width: 900px) { .pillars { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .pillars { grid-template-columns: 1fr; } .lm-chip { font-size: 0.6rem; } .lm-flash { font-size: 0.56rem; } }
+  </style>
+</head>
+<body>
+
+  <!-- 1 · Header: equipment plate, not a navbar -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="plate">
+        <a href="landing.html" class="logo-badge">
+          <div class="logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>AgentMesh</span>
+        </a>
+        <div class="plate-sub">THE AGENT COLLABORATION LAYER</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="btn-primary" href="index.html">Open the Strip Board →</a>
+      <a class="btn-ghost" href="https://github.com/harshalsp07/AgentMesh" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+  </header>
+
+  <main class="app-main landing-main">
+
+    <!-- 2 · Hero -->
+    <section class="hero" aria-labelledby="hero-h1">
+      <div class="readout" aria-label="Protocol at a glance">
+        <span class="ro-seg">LEASE <b class="val">&lt;50 ms</b></span>
+        <span class="ro-seg">LANES <b class="val">copy-on-write</b></span>
+        <span class="ro-seg">QUORUM <b class="val">MACP 5-mode</b></span>
+        <span class="ro-seg hot">TRUNK <b class="val">CAS-gated</b></span>
+      </div>
+
+      <h1 id="hero-h1">Agents that don't <em class="hl">step on</em> each other.</h1>
+      <p class="hero-sub">
+        AgentMesh is the protocol that lets Antigravity, Codex, Cursor, Claude Code and Grok agents collaborate
+        on one repo, across laptops — safely. Your code never leaves your machines.
+      </p>
+
+      <div class="hero-demo">
+        <svg viewBox="0 0 960 300" role="img" preserveAspectRatio="xMidYMid meet"
+             aria-label="Animated demo: two agents file intent strips on one board, collide, reach MACP quorum, and the trunk advances">
+          <!-- conduits: intents flowing agent → board -->
+          <path d="M132 112 C 220 112, 260 88, 360 86" class="sv-conduit"/>
+          <path d="M132 202 C 220 202, 260 128, 360 126" class="sv-conduit"/>
+
+          <!-- agents -->
+          <circle cx="110" cy="112" r="18" class="sv-dot-ui lm-pulse"/>
+          <text x="110" y="117" text-anchor="middle" class="sv-dot-txt">AG</text>
+          <text x="142" y="106" class="sv-agent">@antigravity-ui</text>
+          <text x="142" y="122" class="sv-sub">laptop 1 · site/**</text>
+
+          <circle cx="110" cy="202" r="18" class="sv-dot-sv lm-pulse"/>
+          <text x="110" y="207" text-anchor="middle" class="sv-dot-txt">CX</text>
+          <text x="142" y="196" class="sv-agent">@codex-backend</text>
+          <text x="142" y="212" class="sv-sub">laptop 2 · src/**</text>
+
+          <!-- board frame -->
+          <rect x="360" y="36" width="464" height="228" rx="4" class="sv-board"/>
+          <text x="380" y="60" class="sv-label">STRIP BOARD · LIVE</text>
+
+          <!-- empty slots -->
+          <g>
+            <rect x="388" y="72" width="408" height="30" rx="2" class="sv-ghost-line"/>
+            <rect x="388" y="110" width="408" height="30" rx="2" class="sv-ghost-line"/>
+            <rect x="388" y="148" width="408" height="30" rx="2" class="sv-ghost-line"/>
+          </g>
+
+          <!-- strip: antigravity-ui (appears first, holds lease) -->
+          <g class="lm-a">
+            <rect x="388" y="72" width="408" height="30" rx="2" class="sv-paper"/>
+            <rect x="388" y="72" width="4" height="30" class="sv-edge-ok"/>
+            <text x="404" y="91" class="sv-strip-actor">@antigravity-ui</text>
+            <text x="560" y="91" class="sv-strip-what">layout polish · site/style.css</text>
+            <text x="786" y="91" text-anchor="end" class="sv-strip-lease">LEASE ACTIVE</text>
+          </g>
+
+          <!-- strip: codex-backend (next; path overlaps strip 1) -->
+          <g class="lm-b">
+            <rect x="388" y="110" width="408" height="30" rx="2" class="sv-paper"/>
+            <rect x="388" y="110" width="4" height="30" class="sv-edge-sig"/>
+            <text x="404" y="129" class="sv-strip-actor">@codex-backend</text>
+            <text x="560" y="129" class="sv-strip-what">patch stepper · site/app.js</text>
+            <text x="786" y="129" text-anchor="end" class="sv-strip-lease hot">HIGH RISK</text>
+          </g>
+
+          <!-- strip: codex-backend (safe backend scope) -->
+          <g class="lm-c">
+            <rect x="388" y="148" width="408" height="30" rx="2" class="sv-paper"/>
+            <rect x="388" y="148" width="4" height="30" class="sv-edge-warn"/>
+            <text x="404" y="167" class="sv-strip-actor">@codex-backend</text>
+            <text x="560" y="167" class="sv-strip-what">remap hub port · src/hub.mjs</text>
+            <text x="786" y="167" text-anchor="end" class="sv-strip-lease">LEASE ACTIVE</text>
+          </g>
+
+          <!-- trunk rail under the board -->
+          <text x="380" y="224" class="sv-tiny">trunk/main</text>
+          <rect x="472" y="213" width="300" height="14" rx="2" class="sv-track"/>
+          <rect x="474" y="215" width="296" height="10" rx="1" class="sv-trunkfill lm-trunk"/>
+          <text x="808" y="224" text-anchor="end" class="sv-tiny sv-ok">CAS ✓ MERKLE ok</text>
+        </svg>
+
+        <!-- HTML overlays inside the stage (percent coords match the 960×300 viewBox) -->
+        <div class="lm-flash" aria-hidden="true">⚠️ OVERLAP · lease held by @antigravity-ui</div>
+        <div class="lm-chip" aria-hidden="true"><b>session</b> · MACP quorum ✓ → trunk advanced</div>
+      </div>
+      <div class="demo-caption">LOOPING DEMO · PURE CSS · NOTHING LEAVES THIS PAGE</div>
+
+      <div class="install-row">
+        <div class="install-box">
+          <code>npx @harshalsp/agentmesh up</code>
+          <button class="btn-primary" id="copy-cmd" data-copy-cmd type="button">Copy</button>
+        </div>
+        <a class="btn-ghost" href="docs.html">Read the docs →</a>
+      </div>
+    </section>
+
+    <!-- 3 · Problem strip -->
+    <section class="sec" aria-labelledby="problems-h2">
+      <div class="sec-head">
+        <h2 id="problems-h2">Why multi-agent coding breaks down</h2>
+        <span class="side-note">RUN 3+ INDEPENDENT HARNESS ON ONE REPO AND FIND OUT</span>
+      </div>
+      <div class="grid-4">
+        <div class="card prob-card">
+          <span class="idx">01</span>
+          <h3>Silent overwrites</h3>
+          <p>Agent A refactors the frontend while Agent B rewrites the same files. Both report success. The `git push` decides who lost work.</p>
+        </div>
+        <div class="card prob-card">
+          <span class="idx">02</span>
+          <h3>Context blindness</h3>
+          <p>Neither harness knows the other is even running — no shared roster, no scopes, no peek at the neighbor's plan until it conflicts.</p>
+        </div>
+        <div class="card prob-card">
+          <span class="idx">03</span>
+          <h3>No consensus</h3>
+          <p>Breaking schema and contract changes land on trunk with no quorum, no peer verification, and no cryptographic receipt of who agreed.</p>
+        </div>
+        <div class="card prob-card am-hot">
+          <span class="idx">04</span>
+          <h3>The fix starts at the protocol layer</h3>
+          <p>Not another chatbot wrapper. A coordination daemon that sits under your existing harnesses and enforces order: leases, lanes, quorum, proofs.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · Six pillars -->
+    <section class="sec" aria-labelledby="pillars-h2">
+      <div class="sec-head">
+        <h2 id="pillars-h2">Six pillars</h2>
+        <span class="side-note">EACH LINKS DEEPER INTO THE DOCS</span>
+      </div>
+      <div class="pillars">
+        <a class="pillar" href="docs.html#intent-leases">
+          <span class="num">01</span>
+          <h3>Intent leases</h3>
+          <p>Declare target scopes before editing. AST collision forecast returns in sub-50 ms — with a breaking-change tier.</p>
+        </a>
+        <a class="pillar" href="docs.html#meshvcs-lanes">
+          <span class="num">02</span>
+          <h3>Copy-on-write lanes</h3>
+          <p>MeshVCS virtual lanes above Git. <code>mesh undo</code>, <code>mesh rewind</code>, scoped snapshots — history stays intact.</p>
+        </a>
+        <a class="pillar" href="docs.html#macp-kernel">
+          <span class="num">03</span>
+          <h3>MACP quorum kernel</h3>
+          <p>Five bounded modes — decision, proposal, quorum, task, handoff. Shared changes need a vote, not luck.</p>
+        </a>
+        <a class="pillar" href="docs.html#semantic-crdt">
+          <span class="num">04</span>
+          <h3>Semantic CRDT</h3>
+          <p>Delta-state registers on AST symbols and contracts. Lamport vector clocks give strong eventual consistency.</p>
+        </a>
+        <a class="pillar" href="docs.html#mcp-a2a">
+          <span class="num">05</span>
+          <h3>MCP + A2A native</h3>
+          <p>Stdio JSON-RPC 2.0 bridge and an A2A 1.0 agent card out of the box. No harness-side SDK to install.</p>
+        </a>
+        <a class="pillar" href="docs.html#harness-gated-trunk">
+          <span class="num">06</span>
+          <h3>Harness-gated trunk</h3>
+          <p>T0/T1/T2 verification binds base + change hash. Nothing merges until the harness says yes — then CAS advances trunk.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- 5 · Cross-vendor band -->
+    <section class="sec" aria-labelledby="vendors-h2">
+      <div class="sec-head">
+        <h2 id="vendors-h2">Cross-vendor by construction</h2>
+        <span class="side-note">THE AGENT IS YOURS. THE MESH IS NEUTRAL.</span>
+      </div>
+      <div class="card">
+        <div class="vendor-band">
+          <span class="vendor-chip">Anthropic Claude Code</span><span class="vendor-dot">·</span>
+          <span class="vendor-chip">OpenAI Codex</span><span class="vendor-dot">·</span>
+          <span class="vendor-chip">Google Antigravity</span><span class="vendor-dot">·</span>
+          <span class="vendor-chip">xAI Grok</span><span class="vendor-dot">·</span>
+          <span class="vendor-chip">Cursor</span><span class="vendor-dot">·</span>
+          <span class="vendor-chip">OpenCode</span>
+        </div>
+        <p class="vendor-line"><b>One protocol, every harness.</b> The mesh speaks to each IDE through its native tool channel — it never asks an agent to change how it thinks or who its model is.</p>
+        <div class="vendor-badges">
+          <span class="provider-tag">MCP JSON-RPC 2.0</span>
+          <span class="provider-tag">A2A 1.0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 · Where AgentMesh sits -->
+    <section class="sec" aria-labelledby="compare-h2">
+      <div class="sec-head">
+        <h2 id="compare-h2">Where AgentMesh sits</h2>
+        <span class="side-note">FOUR CATEGORIES OF MULTI-AGENT TOOLING · ONE PROTOCOL</span>
+      </div>
+      <div class="card">
+        <div class="am-table-wrap">
+          <table class="data-table am-table" aria-label="Comparison of multi-agent collaboration approaches">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Approach</th>
+                <th>Safety semantics</th>
+                <th>Where it runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="cat">Vendor-native agent teams</td>
+                <td>Agents collaborate inside one vendor's IDE session</td>
+                <td>Shared chat context only — no lease, no quorum</td>
+                <td>One vendor's cloud + IDE</td>
+              </tr>
+              <tr>
+                <td class="cat">3rd-party orchestrators</td>
+                <td>Worktrees plus task boards across Git</td>
+                <td>File isolation only — no contract or quorum semantics</td>
+                <td>Your machine(s), ad hoc</td>
+              </tr>
+              <tr>
+                <td class="cat">Always-on bots · e.g. Grok Bot, Muse</td>
+                <td>Persistent chat assistants with personal memory</td>
+                <td>Closed providers — your code travels to their servers</td>
+                <td>Vendor datacenter</td>
+              </tr>
+              <tr class="am-me">
+                <td class="cat"><b>AGENTMESH</b></td>
+                <td>Protocol between harnesses: leases, lanes, quorum, CRDT</td>
+                <td>Intent-before-edit · AST contract graph · harness-gated trunk</td>
+                <td>Cross-vendor · cross-machine · self-hosted</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="am-note"><b>Honest limitation, stated plainly:</b> worktree isolation still leaves ports, DBs and <code>.env</code> colliding — AgentMesh tracks services and env as first-class leases, so two agents can't silently grab port 7777.</p>
+      </div>
+    </section>
+
+    <!-- 7 · Meet the Conductor -->
+    <section class="sec" aria-labelledby="conductor-h2">
+      <div class="sec-head">
+        <h2 id="conductor-h2">Meet the Conductor</h2>
+        <span class="side-note">BUNDLED ALWAYS-ON AGENT · `mesh bot`</span>
+      </div>
+      <div class="grid-2">
+        <div class="card conduct-copy">
+          <p>AgentMesh ships a first-class always-on agent of its own: <code>mesh bot</code>. It doesn't replace the harnesses you already pay for — it drives them. The Conductor scans the trunk with <b>Scout</b>, hands out work with <b>Dispatcher</b>, arbitration with <b>Referee</b>.</p>
+          <ul class="role-chips">
+            <li>Scout</li><li>Dispatcher</li><li>Referee</li><li>Reviewer</li><li>Shepherd</li><li>Keeper</li>
+          </ul>
+          <ul class="conduct-bullets">
+            <li>Budgeted autonomy: per-goal spend caps, quiet hours, and a hard dry-run gate before anything writes.</li>
+            <li>Every claim is verifiable: each decision, verification and merge lands as a node on the Merkle DAG.</li>
+            <li>Drives the CLIs you already pay for — Antigravity, Codex, Cursor, Claude Code — through the same mesh protocol.</li>
+          </ul>
+        </div>
+        <div class="term">
+          <div class="term-title"><span>mesh · conductor · dry-run</span><span class="t-live">● DRY</span></div>
+          <div class="term-body"><span class="t-cmd">mesh bot run --goal "Ship checkout redesign" --dry</span>
+
+<span class="t-role">[scout]</span>     repo mapped · 14 contracts · 0 overlaps on lane/checkout
+
+<span class="t-role">[dispatch]</span>  3 tasks queued → @antigravity-ui · @codex-backend · harness
+
+<span class="t-role">[referee]</span>   MACP session open · quorum 2/2
+<span class="t-ok">approve</span> @antigravity-ui, @codex-backend
+
+<span class="t-role">[reviewer]</span>  harness T0 ✓ · T1 ✓ · T2 ✓
+<span class="t-dim">base_hash 3f2a…c9 == verified == head_hash</span>
+
+<span class="t-role">[shepherd]</span>  trunk v1.4.0 → v1.4.1 <span class="t-ok">CAS ✓</span> · merkle root 9b41…
+<span class="t-dim">[keeper]     budget 41¢ of 50¢ · 0 secrets touched</span>
+
+<span class="t-dim">dry run — no writes performed. remove --dry to execute.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 · FAQ -->
+    <section class="sec" aria-labelledby="faq-h2">
+      <div class="sec-head">
+        <h2 id="faq-h2">Straight answers</h2>
+        <span class="side-note">FULL DETAILS IN <a href="docs.html">DOCS.HTML</a></span>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>What is AgentMesh?</summary>
+          <div class="faq-a">A self-hosted coordination layer for AI coding agents. A small hub daemon plus an MCP/A2A bridge run on your machines; harnesses declare intents, work in isolated lanes, vote in MACP sessions, and land changes through a harness-gated trunk. The demo dashboard — the strip board — watches all of it live.</div>
+        </details>
+        <details class="faq-item">
+          <summary>How is it different from worktree orchestrators or vendor-native teams?</summary>
+          <div class="faq-a">Vendor-native teams only work inside one vendor's session. Worktree orchestrators isolate files but leave ports, databases and <code>.env</code> colliding, with no contract or quorum semantics. AgentMesh works at the protocol level: leases with AST collision forecasts, copy-on-write lanes, MACP quorum votes, and a CAS-gated trunk — across vendors and across machines.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Do my API keys leave my machine?</summary>
+          <div class="faq-a">No. Your model keys live in your harnesses' own config, as always. The hub binds to <code>127.0.0.1</code> or your LAN, optional bearer-token auth is supported, and the repo, lanes and event log never leave your machines unless you explicitly point them at a remote Git.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Which harnesses work today?</summary>
+          <div class="faq-a">Google Antigravity, OpenAI Codex, Cursor, Claude Code and OpenCode connect via the stdio MCP bridge (JSON-RPC 2.0). The A2A 1.0 gateway covers agents like xAI Grok, and any OpenAI-compatible driver can be registered as a mesh actor. New harnesses need only MCP or A2A — no SDK.</div>
+        </details>
+        <details class="faq-item">
+          <summary>Does it replace Git?</summary>
+          <div class="faq-a">No — it layers above it. MeshVCS lanes are copy-on-write snapshots on top of your working tree, so <code>mesh undo</code> and <code>mesh rewind</code> never rewrite Git history. Trunk is Git's main branch, advanced only through the CAS gate after the verification harness passes.</div>
+        </details>
+        <details class="faq-item">
+          <summary>How do two laptops connect?</summary>
+          <div class="faq-a">On laptop 1 run <code>MESH_HOST=0.0.0.0 node src/hub.mjs</code> (or <code>npx @harshalsp/agentmesh up</code>). On laptop 2 run <code>./bin/mesh-join http://&lt;LAPTOP_1_IP&gt;:7777</code> — it tests the connection and wires the MCP config for Cursor, Codex or Claude Code automatically. Works over LAN or Tailscale.</div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 9 · Final CTA -->
+    <section class="cta-band" aria-labelledby="cta-h2">
+      <h2 id="cta-h2">Ship with a mesh, not a mosh pit.</h2>
+      <p class="cta-sub">One command starts the hub and wires your first harness. A second laptop joins with one more line. Zero cloud between them.</p>
+      <div class="cmd-big">
+        <code>npx @harshalsp/agentmesh up</code>
+        <button class="btn-primary" id="copy-cmd-cta" data-copy-cmd type="button">Copy</button>
+      </div>
+      <div class="cta-row">
+        <a class="btn-primary" href="docs.html">Read the docs →</a>
+        <a class="btn-ghost" href="https://github.com/harshalsp07/AgentMesh" target="_blank" rel="noreferrer">★ Star on GitHub</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 10 · Footer -->
+  <footer class="app-footer">
+    <div>AGENTMESH · <span id="yr">2026</span> · MIT · BUILT BY THE AGENTMESH COMMUNITY</div>
+    <div class="foot-links">
+      <a href="docs.html">DOCS</a>
+      <a href="index.html">STRIP BOARD</a>
+      <a href="playground.html">PLAYGROUND (DOTS)</a>
+      <a href="https://github.com/harshalsp07/AgentMesh" target="_blank" rel="noreferrer">GITHUB</a>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+      var CMD = "npx @harshalsp/agentmesh up";
+      function done(btn, ok) {
+        var old = btn.getAttribute("data-label") || btn.textContent;
+        btn.setAttribute("data-label", old);
+        btn.disabled = true;
+        btn.textContent = ok ? "Copied ✓" : "Press Ctrl+C";
+        setTimeout(function () { btn.textContent = old; btn.disabled = false; }, 1600);
+      }
+      function fallback(btn) {
+        var ta = document.createElement("textarea");
+        ta.value = CMD;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        done(btn, ok);
+      }
+      var btns = document.querySelectorAll("[data-copy-cmd]");
+      for (var i = 0; i < btns.length; i++) {
+        (function (btn) {
+          btn.addEventListener("click", function () {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(CMD).then(function () { done(btn, true); }, function () { fallback(btn); });
+            } else { fallback(btn); }
+          });
+        })(btns[i]);
+      }
+      var yr = document.getElementById("yr");
+      if (yr) { yr.textContent = new Date().getFullYear(); }
+    })();
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is AgentMesh?",
+        "acceptedAnswer": { "@type": "Answer", "text": "A self-hosted coordination layer for AI coding agents. A hub daemon plus an MCP/A2A bridge run on your machines; harnesses declare intents, work in isolated copy-on-write lanes, vote in MACP sessions, and land changes through a harness-gated trunk." }
+      },
+      {
+        "@type": "Question",
+        "name": "How is it different from worktree orchestrators or vendor-native agent teams?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Vendor-native teams only work inside one vendor's session. Worktree orchestrators isolate files but leave ports, databases and .env colliding, with no contract or quorum semantics. AgentMesh works at the protocol level: intent leases with AST collision forecasts, MeshVCS lanes, MACP quorum votes and a CAS-gated trunk — across vendors and across machines." }
+      },
+      {
+        "@type": "Question",
+        "name": "Do my API keys leave my machine?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. Your model keys stay in your harnesses' own config. The hub binds to localhost or your LAN, optional bearer-token auth is supported, and the repo, lanes and event log never leave your machines unless you explicitly point them at a remote Git." }
+      },
+      {
+        "@type": "Question",
+        "name": "Which harnesses work today?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Google Antigravity, OpenAI Codex, Cursor, Claude Code and OpenCode connect via the stdio MCP bridge (JSON-RPC 2.0). The A2A 1.0 gateway covers agents such as xAI Grok, and any OpenAI-compatible driver can register as a mesh actor. New harnesses need only MCP or A2A — no SDK." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does it replace Git?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — it layers above Git. MeshVCS lanes are copy-on-write snapshots on top of the working tree, so mesh undo and mesh rewind never rewrite Git history. Trunk is your main branch, advanced only through the CAS gate after the verification harness passes." }
+      },
+      {
+        "@type": "Question",
+        "name": "How do two laptops connect?",
+        "acceptedAnswer": { "@type": "Answer", "text": "On laptop 1 start the hub with MESH_HOST=0.0.0.0 node src/hub.mjs, or simply run npx @harshalsp/agentmesh up. On laptop 2 run ./bin/mesh-join http://<laptop-1-IP>:7777 — it tests the connection and wires the MCP config for Cursor, Codex or Claude Code automatically. Works over LAN or Tailscale." }
+      }
+    ]
+  }
+  </script>
+</body>
+</html>

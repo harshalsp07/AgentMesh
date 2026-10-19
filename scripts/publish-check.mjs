@@ -3,7 +3,13 @@ import { existsSync, readFileSync } from 'node:fs';
 
 const CHECKS = [
   { name: 'Production Web App: index.html', path: 'site/index.html', check: (c) => c.includes('AgentMesh') && c.includes('<title>') },
-  { name: 'Design System: style.css', path: 'site/style.css', check: (c) => c.includes('--cyan-core') && c.includes('backdrop-filter') },
+  { name: 'Landing Page', path: 'site/landing.html', check: (c) => c.includes('npx @harshalsp/agentmesh') && c.includes('MACP') },
+  { name: 'Docs Page', path: 'site/docs.html', check: (c) => c.includes('#quickstart') && c.includes('#api') },
+  { name: 'Playground (dots simulator)', path: 'site/playground.html', check: (c) => c.includes('vendor.mjs') || c.includes('MACPKernel') },
+  { name: 'Blog Engine Notes', path: 'site/blog.html', check: (c) => c.includes('AgentMesh') },
+  { name: 'Discoverability: sitemap.xml', path: 'site/sitemap.xml', check: (c) => c.includes('<loc>') },
+  { name: 'Discoverability: llms.txt', path: 'site/llms.txt', check: (c) => c.includes('AgentMesh') },
+  { name: 'Design System: style.css', path: 'site/style.css', check: (c) => c.includes('--paper') && c.includes('--signal') },
   { name: 'Client Engine: app.js', path: 'site/app.js', check: (c) => c.includes('VectorClock') || c.includes('renderTopology') },
   { name: 'PWA Web Manifest', path: 'site/manifest.webmanifest', check: (c) => c.includes('AgentMesh') },
   { name: 'Offline Service Worker', path: 'site/sw.js', check: (c) => c.includes('CACHE_NAME') },

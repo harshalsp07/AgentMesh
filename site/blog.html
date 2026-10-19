@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="AgentMesh engineering notes: why agent collaboration is a protocol problem, the anatomy of a lane, and how the Conductor answers the always-on agent question.">
+<title>Engineering notes — AgentMesh</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .post { max-width: 780px; margin: 0 auto; }
+  .post h2 { color: #e7f0fb; font-size: 20px; margin: 26px 0 8px; }
+  .post p, .post li { color: #9fb2c8; font-size: 14px; line-height: 1.7; }
+  .post code { color: #37e0f8; font-family: ui-monospace, monospace; font-size: 12.5px; }
+  .post pre { background: #0b0e14; border: 1px solid #1d2330; border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .post pre code { color: #cfe1f5; }
+  .bl-nav { display: flex; gap: 8px; flex-wrap: wrap; max-width: 780px; margin: 18px auto 0; }
+  .bl-nav a { color: #9fb2c8; border: 1px solid #232936; padding: 5px 10px; border-radius: 8px; font-size: 12px; text-decoration: none; }
+  .bl-nav a[aria-current="true"] { color: #e7f0fb; border-color: #37e0f8; background: rgba(55,224,248,.07); }
+  .post section { display: none; }
+  .post section:target, .post section#p1:target ~ section, .bl-nav + .post section:only-of-type { display: block; }
+  .byline { color: #64748b; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="plate">
+  <header class="app-header">
+    <a href="index.html" class="logo" style="text-decoration:none">
+      <div class="logo-badge">⬢</div>
+      <div style="text-align:left">
+        <div style="font-weight:700; color:#e7f0fb">AgentMesh</div>
+        <div class="sub-plate">ENGINEERING NOTES · HOW THE COLLABORATION LAYER WORKS</div>
+      </div>
+    </a>
+    <nav class="nav-tabs" style="gap:6px">
+      <a class="ro-seg" href="index.html">Strip board</a>
+      <a class="ro-seg" href="landing.html">About</a>
+      <a class="ro-seg" href="docs.html">Docs</a>
+      <a class="ro-seg" href="playground.html">Playground</a>
+    </nav>
+  </header>
+</div>
+
+<main class="post">
+  <div class="bl-nav">
+    <a href="#why-protocol" aria-current="true">1 · Protocol, not prompts</a>
+    <a href="#lane-anatomy">2 · Anatomy of a lane</a>
+    <a href="#conductor">3 · Meet the Conductor</a>
+  </div>
+
+  <section id="why-protocol">
+    <h2>Agent collaboration is a protocol problem, not a model problem</h2>
+    <p class="byline">Oct 2026 · 4 min read</p>
+    <p>The industry's default answer to "how do I make my agents collaborate" is a kanban board plus hope.
+    Orchestration tools assign agents to git worktrees and let them loose. The failure mode isn't that the
+    agents are dumb — it's that <b>nothing between them is falsifiable</b>:</p>
+    <ul>
+      <li>Agent A proposes a rename while Agent B renames the same function to something else.</li>
+      <li>Both flip the same feature flag to different values in the same file.</li>
+      <li>One rewrites a route; the other's client code updates against the old shape. Nothing notices until CI.</li>
+    </ul>
+    <p>AgentMesh treats those as <b>first-class protocol events</b>. Before any edit, an agent declares an intent
+    (goal + path globs + contracts used). The hub forecasts collisions <i>before they exist</i>, ranks them, and
+    delivers the warning where the agent will actually read it — its fact sheet, on the next tool call.</p>
+    <p>When risks are breaking, an escalation path exists that no board offers: the <code>MACP</code> kernel opens a
+    quorum window, peers cast weighted ballots, and the DAG records the decision. If a human built this meeting
+    by hand, the cost would be a calendar invite; the point is that agents can afford to hold it <i>automatically,
+    every time</i>.</p>
+    <p>Zero new infrastructure: an MCP server, a lane directory, an SQLite event log. That's the whole trick.</p>
+  </section>
+
+  <section id="lane-anatomy">
+    <h2>The anatomy of a lane: snapshot every turn</h2>
+    <p class="byline">Oct 2026 · 5 min read</p>
+    <p>Every agent gets its own lane. Not a worktree (though git-backed lanes exist for scale), a directory copy —
+    because the lane's job is <b>recovery semantics</b>, not build isolation:</p>
+    <ul>
+      <li><code>mesh snapshot ui</code> after every meaningful turn — dir copy plus, when git is present, real
+      commits under <code>refs/mesh/snap/*</code>.</li>
+      <li><code>mesh undo ui</code> / <code>mesh rewind ui N</code> restore the lane in one call — no git fluency required by the agent.</li>
+      <li>Lanes are independent of trunk, so speculative work never pollutes the shared branch.</li>
+    </ul>
+    <p>The trunk side is guarded by an integration queue: nothing merges by a fast-forward decree. Proposals run
+    the verification harness (T0 syntax → T1 tests → T2 contracts) and advance with compare-and-swap semantics —
+    two agents racing to land get one winner and one clean retry.</p>
+    <p>Isolation is boring on purpose. The interesting part is the <i>machinery around</i> isolation: who declared,
+    who verified, what the contract diff broke. That's why agents can be ambitious and the system stays calm.</p>
+  </section>
+
+  <section id="conductor">
+    <h2>Conductor: our answer to the always-on agent question</h2>
+    <p class="byline">Oct 2026 · 4 min read</p>
+    <p>Competitors ship always-on personal agents tied to closed clouds. We think the reflexive question should
+    instead get a <b>mesh-native</b> answer: <code>mesh bot run --goal "…"</code>, self-hosted and cross-vendor.</p>
+    <p>The Conductor is a budgeted agent with six roles, each boring and verifiable:</p>
+    <ul>
+      <li><b>Scout</b> — map the repo before any model call: hot dirs, contracts, scripts.</li>
+      <li><b>Dispatcher</b> — split a goal into scoped tasks on the shared board, chained by deps.</li>
+      <li><b>Referee</b> — when scopes overlap, produce a sequencing plan instead of a collision.</li>
+      <li><b>Reviewer</b> — schedule fresh-context verification; never self-review.</li>
+      <li><b>Shepherd</b> — brief newcomers from live mesh state.</li>
+      <li><b>Keeper</b> — maintain repo memory as plain markdown.</li>
+    </ul>
+    <p>Every run has a coin budget and a wall clock. Dry runs are the default; driving a real coding CLI
+    (Claude Code, Codex, Grok Build, OpenCode) is an operator choice gated by <code>MESH_BOT_LIVE=1</code>.
+    The driver counts as evidence in the run ledger, visible in <code>/api/bot</code> and on the strip board.</p>
+    <p>The bet: the moat in agent collaboration is not a bigger model — it is <b>protocol-level trust across
+    vendors</b>, and it is on your laptop, not someone else's cloud.</p>
+  </section>
+</main>
+
+<footer style="max-width:1080px; margin:32px auto; padding:0 16px; display:flex; gap:14px; color:#64748b; font-size:12px; flex-wrap:wrap">
+  <span>AgentMesh · MIT</span>
+  <a class="ro-seg" href="index.html">Strip board</a>
+  <a class="ro-seg" href="docs.html">Docs</a>
+  <a class="ro-seg" href="playground.html">Playground</a>
+</footer>
+
+<script>
+  const links = document.querySelectorAll('.bl-nav a');
+  const mark = () => {
+    const h = location.hash || '#why-protocol';
+    for (const a of links) a.setAttribute('aria-current', String(a.getAttribute('href') === h));
+    for (const s of document.querySelectorAll('.post > section')) s.style.display = ('#' + s.id) === h ? 'block' : 'none';
+  };
+  addEventListener('hashchange', mark); mark();
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { rmSync, readFileSync, existsSync } from 'node:fs';
+import { rmSafe } from './cleanup.mjs';
 import { applyBoardOp, loadBoard, exportTldraw, importTldraw, voiceJoin, voiceSignal, voiceDrain, voiceSweep } from '../src/share.mjs';
 
 const PORT = '7783';
@@ -22,7 +23,7 @@ before(async () => {
   }
   throw new Error('hub did not start');
 });
-after(() => { hub.kill(); rmSync(DIR, { recursive: true, force: true }); });
+after(() => { hub.kill(); rmSafe(DIR); });
 
 describe('board store', () => {
   it('add/update/delete validate and fail closed', () => {
