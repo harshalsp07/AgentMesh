@@ -3,7 +3,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { rmSync, existsSync } from 'node:fs';
-import { killChild, rmSafe } from './cleanup.mjs';
+import { killChild, rmSafe, claimPort } from './cleanup.mjs';
 import { createRequire } from 'node:module';
 
 const PORT = '7782';
@@ -14,6 +14,7 @@ let hub;
 const post = (path, body) => fetch(`${HUB}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
 
 before(async () => {
+  await claimPort('7782');
   rmSync(DIR, { recursive: true, force: true });
   hub = spawn('node', ['src/hub.mjs'], { env: { ...process.env, MESH_PORT: PORT, MESH_DIR: DIR }, stdio: ['ignore', 'ignore', 'inherit'] });
   const t0 = Date.now();

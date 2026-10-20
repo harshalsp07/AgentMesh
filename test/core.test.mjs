@@ -4,7 +4,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { rmSync } from 'node:fs';
-import { rmSafe } from './cleanup.mjs';
+import { rmSafe, claimPort } from './cleanup.mjs';
 
 const PORT = '7781';
 const HUB = `http://localhost:${PORT}`;
@@ -17,6 +17,7 @@ async function cmd(actor, kind, payload) {
 }
 
 before(async () => {
+  await claimPort('7781');
   rmSync('.mesh-test', { recursive: true, force: true });
   hub = spawn('node', ['src/hub.mjs'], {
     env: { ...process.env, MESH_PORT: PORT, MESH_DIR: '.mesh-test' },

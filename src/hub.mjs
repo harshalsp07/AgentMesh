@@ -13,10 +13,11 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, writeFileSync, renameSync, mkdirSync, existsSync, readFileSync, statfsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { atomicWrite } from './store.mjs';
 import { createRequest, respondRequest, addPin, recordDecision, inboxFor, loadCollab } from './collab.mjs';
 import { forecast, scopeOfIntent } from './graph.mjs';
 import { loadBoard, applyBoardOp, exportTldraw, importTldraw, voiceJoin, voiceLeave, voiceHeartbeat, voiceSignal, voiceDrain, voiceSweep } from './share.mjs';
-import { openDb, dbAppendEvent, dbEvents, dbVerify, kvGet, kvSet, metricIncr, metricAll, dbCheckpoint } from './db.mjs';
+import { openDb, dbAppendEvent, dbEvents, dbEventsSince, dbMaxSeq, dbVerify, kvGet, kvSet, metricIncr, metricAll, dbCheckpoint } from './db.mjs';
 import { authEnforced, readPub, verifyToken, scopeAllows } from './auth.mjs';
 import { SemanticDocument } from './crdt.mjs';
 import { MACPKernel } from './macp.mjs';
@@ -31,6 +32,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const PORT = +process.env.MESH_PORT || 7777;
 export const HOST = process.env.MESH_HOST || '127.0.0.1';
 export const DIR = process.env.MESH_DIR || '.mesh';
+
+// --- fail-closed bind policy ---------------------------------------------
+// A hub reachable from the network with no capability auth is an open write API
+// for every agent on the LAN. Previously this only printed a warning, so the
+// shipped Docker image (MESH_HOST=0.0.0.0, no keys) served an unauthenticated
+// world-writable hub. Now a non-loopback bind REFUSES to start unless auth is
+// enforced, or the operator explicitly opts out with MESH_INSECURE=1.
+const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1', '0:0:0:0:0:0:0:1']);
+const isLoopbackBind = () => LOOPBACK.has(String(HOST).toLowerCase());
 
 export const crdtDoc = new SemanticDocument('global-mesh');
 export const macpKernel = new MACPKernel(DIR);
@@ -90,6 +100,14 @@ const hashOf = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex
     log.push(e); S.seq = Math.max(S.seq, e.seq); S.prev = e.hash;
     try { reduce(e, true); } catch {}
   }
+  // The seq counter must reflect the HIGHEST seq in the store, not the last row
+  // replayed. If replay is ever truncated (or rows are pruned) the counter would
+  // restart below existing primary keys and every new event would be silently
+  // dropped on INSERT conflict.
+  try { S.seq = Math.max(S.seq, dbMaxSeq(db)); } catch {}
+  // The chain head must also be the last stored hash, or the next event links to
+  // a stale predecessor and /verify reports a chain break.
+  try { const last = db.prepare(`SELECT hash FROM events ORDER BY seq DESC LIMIT 1`).get(); if (last?.hash) S.prev = last.hash; } catch {}
 })();
 
 // path scope overlap: "src/api/**" overlaps "src/api/auth/**"
@@ -114,10 +132,25 @@ function emit(actor, kind, payload) {
   const e = { seq: ++S.seq, t: Date.now(), hlc: hlc(), epoch: S.epoch, actor, kind, payload, prev: S.prev };
   e.hash = hashOf(e);
   S.prev = e.hash; log.push(e);
-  try { dbAppendEvent(db, e); metricIncr(db, `events:${kind}`); metricIncr(db, 'events:total'); } catch {}
+  // The DB insert is the durable write. If it fails we must NOT pretend the
+  // event happened: a silently-lost event breaks the hash chain vs. the JSONL
+  // mirror. Record the failure loudly instead of swallowing it.
+  try { dbAppendEvent(db, e); metricIncr(db, `events:${kind}`); metricIncr(db, 'events:total'); }
+  catch (err) {
+    try { appendFileSync(`${DIR}/hub.log`, JSON.stringify({ t: Date.now(), level: 'error', msg: 'event append failed', seq: e.seq, kind, error: String(err && err.message) }) + '\n'); } catch {}
+  }
   try { appendFileSync(`${DIR}/events.jsonl`, JSON.stringify(e) + '\n'); } catch { /* disk full? SQLite still holds it */ }
   reduce(e); renderContexts();
-  for (const s of subs) { try { s.write(`data: ${JSON.stringify(e)}\n\n`); } catch { subs.delete(s); } }
+  // SSE frame carries the event id so a reconnecting client can resume with
+  // Last-Event-ID. Slow consumers are dropped rather than allowed to grow the
+  // hub's heap without bound.
+  const frame = `id: ${e.seq}\ndata: ${JSON.stringify(e)}\n\n`;
+  for (const s of subs) {
+    try {
+      if (s.writableLength > 4 * 1024 * 1024) { try { s.destroy(); } catch {} subs.delete(s); continue; }
+      s.write(frame);
+    } catch { subs.delete(s); }
+  }
   return e;
 }
 // access log with rotation (best-effort; never breaks a request)
@@ -139,8 +172,13 @@ function checkRate(actor) {
 // capability auth: enforced automatically once keys exist (mesh up) or MESH_AUTH=1.
 // Reads stay open (canvas works); every POST needs a token bound to its actor+scope.
 function checkAuth(req, actor, scope) {
-  if (!authEnforced(DIR)) return null;
-  const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  // Cache the verified token on the request so later handlers can make
+  // additional scope decisions (e.g. "may this actor take a hard lease?")
+  // without re-verifying the signature.
+  req._mesh = req._mesh || { scopes: [] };
+  if (!authEnforced(DIR)) { req._mesh.scopes = ['*']; return null; }
+  const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+    || (req.headers['x-mesh-token'] ? String(req.headers['x-mesh-token']) : '');
   if (!tok) return { ok: false, error: 'auth required: set Authorization: Bearer <token> (mesh token <actor>)' };
   let pub;
   try { pub = readPub(DIR); } catch { return { ok: false, error: 'hub keys missing' }; }
@@ -148,6 +186,9 @@ function checkAuth(req, actor, scope) {
   if (!v.ok) return v;
   if (v.actor !== actor) return { ok: false, error: `token is for ${v.actor}, not ${actor}` };
   if (!scopeAllows(v.scope, scope)) return { ok: false, error: `token lacks scope ${scope}` };
+  req._mesh.scopes = Array.isArray(v.scope) ? v.scope : [String(v.scope)];
+  req._mesh.actor = v.actor;
+  req._mesh.jti = v.jti;
   return null;
 }
 
@@ -229,7 +270,7 @@ function renderContexts() {
   for (const a of actors) {
     try {
       const f = `${DIR}/context/${a}.md`;
-      writeFileSync(f + '.tmp', sheet(a)); renameSync(f + '.tmp', f);
+      atomicWrite(f, sheet(a));
     } catch { /* read-only fs? skip */ }
   }
 }
@@ -247,6 +288,17 @@ setInterval(() => {
   voiceSweep(voice.peers, voice.mail, now);
   if (changed) renderContexts();
 }, 10_000).unref();
+
+// SSE keep-alive: idle proxies (nginx 60s, Cloudflare) drop a silent stream.
+// A comment frame every 25s keeps the connection alive without polluting the
+// event log.
+setInterval(() => {
+  for (const s of subs) { try { s.write(`: ping ${Date.now()}\n\n`); } catch { subs.delete(s); } }
+}, 25_000).unref();
+
+// WAL checkpoint: without a periodic checkpoint the -wal file grows without
+// bound during a long-running hub (it was only truncated at shutdown).
+setInterval(() => { try { dbCheckpoint(db); } catch {} }, 60_000).unref();
 
 const readBody = (req, res) => new Promise((resolve) => {
   let b = '', tooBig = false;
@@ -321,14 +373,31 @@ export function createServer() {
           const uses = normStrs(payload.uses);
           const services = normStrs(payload.services);
           const symbols = normStrs(payload.symbols);
+          // A hard lease blocks every peer that touches the scope, so it is a
+          // denial-of-service lever. It requires an explicit capability scope
+          // when auth is enforced. (Unauthenticated dev mode keeps the old
+          // behaviour so local single-user flows are unaffected.)
+          const wantsHard = payload.hard === true;
+          if (wantsHard && !scopeAllows(req._mesh?.scopes || [], 'lease.hard'))
+            return json({ ok: false, error: 'token lacks scope lease.hard' }, 403);
           // Boundary enforcement: hard lease blocks overlapping writes
           const blocker = live().find((i) => i.hard && i.actor !== actor && (overlap(paths, i.paths) || meet(services, i.services || []).length > 0));
           if (blocker) {
             emit(actor, 'policy.denied', { reason: 'hard-lease', by: blocker.actor, intent: blocker.id });
             return json({ ok: false, error: `blocked by hard lease of ${blocker.actor} (intent ${blocker.id})`, tier: 0 }, 409);
           }
+          // The id is SERVER-ASSIGNED. It used to be spread from the client
+          // payload AFTER the server id, so a caller could overwrite another
+          // actor's intent entry (paths, hard flag and all) — a cross-actor
+          // lease hijack. The server id now always wins.
           const id = `in-${S.seq + 1}`;
-          const e = emit(actor, 'intent.declared', { id, effect: 'none', contracts: [], uses: [], services: [], symbols: [], hard: false, ...payload, paths, contracts, uses, services, symbols });
+          const e = emit(actor, 'intent.declared', {
+            ...payload,
+            id,
+            effect: payload.effect || 'none',
+            paths, contracts, uses, services, symbols,
+            hard: wantsHard,
+          });
           route(e);
           return json({ ok: true, intent: id, seq: e.seq });
         }
@@ -378,6 +447,19 @@ export function createServer() {
         }
         if (who === 'rpc' && req.method === 'POST') {
           const p = await readBody(req, res);
+          if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+          // A2A is a peer-to-peer surface, so it is authenticated like any other
+          // write path. Mutating methods are bound to the acting agent; read
+          // methods only need a valid capability token.
+          const MUTATING = new Set(['agent.macp.propose']);
+          if (MUTATING.has(p.method)) {
+            if (!guard(p.params?.actor, 'macp')) return;
+          } else if (authEnforced(DIR)) {
+            const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+            let pub = null; try { pub = readPub(DIR); } catch {}
+            const v = pub ? verifyToken(pub, tok, Date.now(), { dir: DIR }) : { ok: false, error: 'hub keys missing' };
+            if (!v.ok) return json({ ok: false, error: v.error || 'auth required' }, 401);
+          }
           const r = handleA2ARpc(p, { macpKernel, crdtDoc, merkleDag, hubState: { roster: loadCollab(DIR).roster, intents: live(), seq: S.seq } });
           return json(r);
         }
@@ -416,7 +498,36 @@ export function createServer() {
         try { const st = statfsSync(DIR); diskFreeMB = Math.floor(st.bfree * st.bsize / 1048576); } catch {}
         return json({ ok: true, ready: true, seq: S.seq, epoch: S.epoch, db: existsSync(`${DIR}/mesh.db`), diskFreeMB });
       }
-      if (route0 === 'events') { res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' }); subs.add(res); req.on('close', () => subs.delete(res)); return; }
+      if (route0 === 'events') {
+        // SSE is a read stream but it carries intent paths, task text and pin
+        // text, so it is authenticated when auth is enforced. EventSource cannot
+        // set headers, so the token may also be passed as ?token=.
+        if (authEnforced(DIR)) {
+          const q = new URL(req.url || '/', 'http://x');
+          const t = q.searchParams.get('token') || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+          let pub; try { pub = readPub(DIR); } catch { pub = null; }
+          const v = pub ? verifyToken(pub, t, Date.now(), { dir: DIR }) : { ok: false };
+          if (!v.ok) { res.writeHead(401, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'auth required for /events' })); return; }
+        }
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache, no-transform',
+          connection: 'keep-alive',
+          'x-accel-buffering': 'no',
+        });
+        subs.add(res);
+        // Resume support: the browser sends Last-Event-ID on reconnect.
+        const lastId = +(req.headers['last-event-id'] || 0);
+        if (lastId > 0) {
+          try {
+            for (const e of dbEventsSince(db, lastId, 500))
+              res.write(`id: ${e.seq}\ndata: ${JSON.stringify(e)}\n\n`);
+          } catch {}
+        }
+        res.write(`: connected seq=${S.seq}\n\n`);
+        req.on('close', () => subs.delete(res));
+        return;
+      }
       // ---- UI API: one poll for every client (canvas, TUI, extension) ----
       if (route0 === 'api') {
         const parts = ((req.url || '/').split('?')[0]).split('/').filter(Boolean).slice(1);
@@ -566,6 +677,7 @@ export function createServer() {
           if (!p) return;
           if (p.__badJson) return json({ ok: false, error: 'invalid JSON' }, 400);
           if (!p.actor) return json({ ok: false, error: 'actor required' }, 400);
+          if (!guard(p.actor, 'voice')) return;
           voiceHeartbeat(voice.peers, p.actor);
           return json({ ok: true });
         }
@@ -580,6 +692,8 @@ export function createServer() {
           const m = (req.url || '').match(/actor=([^&]+)/);
           const actor = m?.[1] ? decodeURIComponent(m[1]) : null;
           if (!actor) return json({ ok: false, error: 'actor required' }, 400);
+          // Draining another actor's signaling mailbox has a side effect.
+          if (!guard(actor, 'voice')) return;
           voiceHeartbeat(voice.peers, actor);
           return json({ ok: true, signals: voiceDrain(voice.mail, actor), peers: Object.keys(voice.peers) });
         }
@@ -621,6 +735,7 @@ export function createServer() {
           if (req.method === 'POST') {
             const p = await readBody(req, res);
             if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            if (!guard(p.actor, 'crdt')) return;
             if (p.action === 'set' && p.key && p.actor) {
               const resu = crdtDoc.setSymbol(p.key, p.value, p.actor);
               emit(p.actor, 'crdt.symbol_updated', { key: p.key, value: p.value, lamport: resu.op.lamport });
@@ -641,8 +756,9 @@ export function createServer() {
           if (req.method === 'POST') {
             const p = await readBody(req, res);
             if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            if (!guard(p.actor || p.initiator, 'macp')) return;
             if (p.action === 'create') {
-              const sess = macpKernel.createSession(p);
+              const sess = macpKernel.createSession({ ...p, mode: p.mode || 'proposal' });
               emit(p.initiator || 'anonymous', 'macp.session_created', { id: sess.id, mode: sess.mode });
               return json({ ok: true, session: sess.toJSON() });
             }
@@ -670,6 +786,7 @@ export function createServer() {
           if (req.method === 'POST') {
             const p = await readBody(req, res);
             if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            if (!guard(p.actor, 'dag')) return;
             if (p.action === 'append' && p.actor && p.kind) {
               const node = merkleDag.append(p.actor, p.kind, p.payload, p.parents, p.metadata);
               return json({ ok: true, node: node.toJSON(), rootHash: merkleDag.getRootHash() });
@@ -684,12 +801,16 @@ export function createServer() {
           if (req.method === 'GET') {
             const m = (req.url || '').match(/actor=([^&]+)/);
             const actor = m?.[1] ? decodeURIComponent(m[1]) : null;
+            // Draining another actor's signaling mailbox is a read that has a
+            // side effect, so it is scoped like the write it mirrors.
+            if (actor && !guard(actor, 'p2p')) return;
             if (actor) return json({ ok: true, signals: p2pSwarm.drainSignals(actor) });
             return json({ ok: true, peers: p2pSwarm.listPeers() });
           }
           if (req.method === 'POST') {
             const p = await readBody(req, res);
             if (!p || p.__badJson) return p ? json({ ok: false, error: 'invalid JSON' }, 400) : undefined;
+            if (!guard(p.actor || p.from, 'p2p')) return;
             if (p.action === 'join' && p.actor) return json(p2pSwarm.join(p.actor, p.metadata || {}));
             if (p.action === 'leave' && p.actor) return json(p2pSwarm.leave(p.actor));
             if (p.action === 'signal' && p.from && p.to && p.type) return json(p2pSwarm.sendSignal(p.from, p.to, p.type, p.data));
@@ -796,9 +917,34 @@ export function closeHub(server) {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('hub.mjs')) {
+  // Fail closed: a hub bound to a non-loopback interface with no capability
+  // auth is an open, world-writable coordination API for everyone on the LAN.
+  // Previously this only printed a warning, so the shipped Docker image
+  // (MESH_HOST=0.0.0.0, no keys) served an unauthenticated hub. Now it
+  // refuses to start unless the operator explicitly accepts the risk.
+  if (!isLoopbackBind() && !authEnforced(DIR) && process.env.MESH_INSECURE !== '1') {
+    console.error([
+      '',
+      'REFUSING TO START: the hub is bound to a non-loopback interface without auth.',
+      '',
+      `  MESH_HOST=${HOST}  MESH_DIR=${DIR}`,
+      '',
+      'A network-reachable AgentMesh hub without capability tokens lets any host',
+      'on the network declare intents, take leases, vote and mutate shared state.',
+      '',
+      'Fix it (pick one):',
+      '  1. mesh keygen && mesh token <actor>     # enable ed25519 capability auth',
+      '  2. MESH_HOST=127.0.0.1                  # loopback only, tunnel for remote access',
+      '  3. MESH_INSECURE=1                      # trusted LAN only — you accept the risk',
+      '',
+      'See docs/SECURITY.md.',
+      '',
+    ].join('\n'));
+    process.exit(78); // EX_CONFIG
+  }
   const server = createServer().listen(PORT, HOST, () => console.error(`hub listening on ${HOST}:${PORT} (dir=${DIR}, auth=${authEnforced(DIR) ? 'enforced' : 'open'})`));
-  if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !authEnforced(DIR))
-    console.error('WARN: hub on a non-loopback interface WITHOUT auth — run `mesh keygen` first (see docs/SECURITY.md)');
+  if (!isLoopbackBind() && !authEnforced(DIR))
+    console.error('WARN: hub on a non-loopback interface WITHOUT auth (MESH_INSECURE=1) — see docs/SECURITY.md');
   for (const sig of ['SIGTERM', 'SIGINT']) {
     process.on(sig, async () => { await closeHub(server); process.exit(0); });
   }

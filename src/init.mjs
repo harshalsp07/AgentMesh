@@ -8,10 +8,12 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 
-const SERVER_ENTRY = ({ actor, hub }) => ({
+const SERVER_ENTRY = ({ actor, hub, token }) => ({
   command: 'npx',
   args: ['-y', '@harshalsp/agentmesh', 'bridge'],
-  env: { MESH_ACTOR: actor, MESH_HUB: hub },
+  // MESH_TOKEN is required once the hub enforces capability auth (`mesh up`
+  // creates the keys). Without it every MCP tool call fails with 401.
+  env: { MESH_ACTOR: actor, MESH_HUB: hub, ...(token ? { MESH_TOKEN: token } : {}) },
 });
 
 export const CLIENTS = [
@@ -74,10 +76,10 @@ You are a peer agent on a shared repo. Follow the mesh protocol — it is cheap:
    remains an ordinary git repo. Recovery is automatic.
 `;
 
-export function init(targetRoot, { hub = 'http://localhost:7777', actor = null, force = false } = {}) {
+export function init(targetRoot, { hub = 'http://localhost:7777', actor = null, force = false, token = null } = {}) {
   const out = { ok: true, targetRoot, files: [], detected: [], skipped: [], next: [] };
   actor = actor && String(actor).trim() ? String(actor).trim() : deriveActor(targetRoot);
-  const entry = SERVER_ENTRY({ actor, hub: hub.replace(/\/$/, '') });
+  const entry = SERVER_ENTRY({ actor, hub: hub.replace(/\/$/, ''), token: token || process.env.MESH_TOKEN || null });
 
   // 1) rules live inside the target repo so every harness reads them natively
   const rulesDir = join(targetRoot, '.agents', 'rules');

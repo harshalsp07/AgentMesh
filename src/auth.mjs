@@ -34,12 +34,23 @@ export function keygen(dir, { rotate = false } = {}) {
 const readPriv = (dir) => readFileSync(join(dir, 'keys', 'hub.key'), 'utf8');
 export const readPub = (dir) => readFileSync(join(dir, 'keys', 'hub.pub'), 'utf8');
 
-const DEFAULT_SCOPE = ['intent.declare', 'intent.release', 'presence', 'request', 'pin', 'decision', 'board', 'voice', 'tasks', 'bot', 'memory', 'audit'];
+// Capability scopes. Every write path the hub exposes has exactly one scope so a
+// token can be narrowed per capability instead of all-or-nothing.
+//   'build'      — release/build gating (was MISSING: mesh build + mesh_build_status 403'd)
+//   'lease.hard' — take a hard lease that blocks peers (a DoS lever, so it is explicit)
+//   'crdt'|'macp'|'dag'|'p2p' — the sync surfaces (previously unauthenticated writes)
+export const SCOPES = [
+  'intent.declare', 'intent.release', 'presence', 'request', 'pin', 'decision',
+  'board', 'voice', 'tasks', 'bot', 'memory', 'audit', 'build',
+  'lease.hard', 'crdt', 'macp', 'dag', 'p2p',
+];
+const DEFAULT_SCOPE = SCOPES;
 
 export function mintToken(dir, { actor, scope = DEFAULT_SCOPE, ttlH = 8 } = {}) {
   const jti = randomBytes(6).toString('hex');
+  const scopes = Array.isArray(scope) ? scope.map(String) : [String(scope)];
   const header = b64u(JSON.stringify({ alg: 'EdDSA', typ: 'mesh-cap' }));
-  const payload = b64u(JSON.stringify({ actor, scope, exp: Date.now() + ttlH * 3600_000, jti }));
+  const payload = b64u(JSON.stringify({ actor, scope: scopes, exp: Date.now() + ttlH * 3600_000, jti }));
   const sig = b64u(sign(null, Buffer.from(`${header}.${payload}`), readPriv(dir)));
   return `${header}.${payload}.${sig}`;
 }
@@ -72,6 +83,18 @@ export function verifyToken(pubPem, token, nowMs = Date.now(), { dir = null } = 
   } catch (e) { return { ok: false, error: String(e.message) }; }
 }
 // scope check: kind 'intent.declare' must be in token.scope (or scope has '*')
-export const scopeAllows = (scope = [], kind) => scope.includes('*') || scope.includes(kind);
+// Supports exact names, the global '*', and prefix wildcards such as 'tasks.*'
+// (which grants the bare 'tasks' scope and any 'tasks.<sub>' scope).
+export const scopeAllows = (scope = [], kind) => {
+  const s = Array.isArray(scope) ? scope : [scope];
+  if (s.includes('*')) return true;
+  if (s.includes(kind)) return true;
+  for (const g of s) {
+    if (typeof g !== 'string' || !g.endsWith('.*')) continue;
+    const base = g.slice(0, -2); // 'tasks.*' -> 'tasks'
+    if (kind === base || kind.startsWith(base + '.')) return true;
+  }
+  return false;
+};
 // agent tokens are derived from the owner's key with limited scope + 8h default (per plan)
 export const fingerprint = (dir) => { try { return fpOf(readPub(dir)); } catch { return null; } };

@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 // bin/mesh-join — Zero-config helper to connect Laptop 2 to Laptop 1 Hub.
+// Usage: mesh-join <hub-url> [actor] [--token <capability-token>]
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
-const hubUrl = process.argv[2] || process.env.MESH_HUB || 'http://localhost:7777';
-const actor = process.env.MESH_ACTOR || 'codex-backend';
+const argv = process.argv.slice(2);
+const positional = argv.filter((a) => !a.startsWith('--'));
+const flag = (name) => {
+  const i = argv.indexOf(`--${name}`);
+  return i >= 0 ? (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true) : null;
+};
+const hubUrl = positional[0] || process.env.MESH_HUB || 'http://localhost:7777';
+const actor = positional[1] || process.env.MESH_ACTOR || 'codex-backend';
+// Capability token: required once the hub enforces auth (`mesh up` creates keys).
+const token = flag('token') || process.env.MESH_TOKEN || null;
+const authH = () => (token ? { authorization: `Bearer ${token}` } : {});
 
 console.log(`\n🌐 AgentMesh Multi-Laptop Connector`);
 console.log(`-----------------------------------`);
@@ -23,12 +33,15 @@ async function check() {
     // Register presence
     const pres = await fetch(`${hubUrl.replace(/\/$/, '')}/cmd`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...authH() },
       body: JSON.stringify({ actor, kind: 'presence', payload: { verb: 'joined', focus: 'backend' } }),
     }).then((r) => r.json());
 
     if (pres.ok) {
       console.log(`✔ Registered presence for @${actor} on Hub!`);
+    } else {
+      console.warn(`⚠ Presence registration failed: ${pres.error || 'unknown error'}`);
+      if (!token) console.warn('  (no capability token supplied — the hub may enforce auth; re-run with --token <token>)');
     }
 
     // Write local .cursor/mcp.json if inside project
@@ -41,6 +54,7 @@ async function check() {
           env: {
             MESH_ACTOR: actor,
             MESH_HUB: hubUrl,
+            ...(token ? { MESH_TOKEN: token } : {}),
           },
         },
       },

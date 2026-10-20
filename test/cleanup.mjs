@@ -24,3 +24,18 @@ export async function rmSafe(dir, attempts = 6) {
   }
   return false;
 }
+
+// node --test runs test files in parallel, so two suites that pick the same
+// port silently talk to each other's hub — which is how a 401 from a keyed hub
+// looked like a product bug. Every suite that binds a port should claim it
+// first so the collision is reported as a collision.
+export async function claimPort(port, host = '127.0.0.1') {
+  const url = `http://${host}:${port}/health`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(500) });
+    if (res.ok) throw new Error(`port ${port} is already in use by another test suite`);
+  } catch (e) {
+    if (String(e?.message || '').includes('already in use')) throw e;
+  }
+  return true;
+}

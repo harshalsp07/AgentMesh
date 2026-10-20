@@ -14,5 +14,8 @@ COPY bin ./bin
 ENV MESH_DIR=/data MESH_HOST=0.0.0.0 MESH_PORT=7777 NODE_ENV=production
 EXPOSE 7777
 USER mesh
+# The hub refuses to start on a non-loopback bind without capability auth, so the
+# container generates a keypair on first boot. Mint per-actor tokens with:
+#   docker exec <container> node src/mesh.mjs token <actor>
 HEALTHCHECK --interval=15s --timeout=5s CMD node -e "fetch('http://127.0.0.1:7777/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["node", "src/hub.mjs"]
+CMD ["sh", "-c", "node src/mesh.mjs keygen >/dev/null 2>&1 || true; exec node src/hub.mjs"]

@@ -2,6 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { rmSync } from 'node:fs';
 import { createServer, closeHub } from '../src/hub.mjs';
+import { claimPort } from './cleanup.mjs';
 
 const PORT = 7789;
 const HOST = '127.0.0.1';
@@ -12,6 +13,7 @@ describe('Multi-Harness Coordination: Laptop 1 (Antigravity) <-> Laptop 2 (Codex
   let server;
 
   before(async () => {
+    await claimPort(PORT, HOST);
     rmSync(DIR, { recursive: true, force: true });
     server = createServer().listen(PORT, HOST);
     await new Promise((r) => setTimeout(r, 150));

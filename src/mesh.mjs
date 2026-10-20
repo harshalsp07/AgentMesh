@@ -247,10 +247,10 @@ async function main() {
       return;
     }
     case 'init': {
-      // P0: TTFC. mesh init <any-repo> [--actor n] [--hub url] [--force]
+      // P0: TTFC. mesh init <any-repo> [--actor n] [--hub url] [--token t] [--force]
       const { init } = await import('./init.mjs');
       const target = args[1] && !args[1].startsWith('--') ? resolve(args[1]) : process.cwd();
-      console.log(JSON.stringify(init(target, { hub: HUB, actor: opt('actor'), force: !!opt('force') }), null, 2));
+      console.log(JSON.stringify(init(target, { hub: HUB, actor: opt('actor'), force: !!opt('force'), token: opt('token') }), null, 2));
       return;
     }
     case 'tasks': {

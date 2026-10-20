@@ -2,3 +2,6 @@
 eject-*/
 .mesh-bundles/
 node_modules/
+
+# Local harness scratch (plan artifacts, tool state) — never repo content.
+.kilo/

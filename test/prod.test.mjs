@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { spawn, execFileSync, spawnSync } from 'node:child_process';
 import { rmSync, existsSync } from 'node:fs';
 import { join, delimiter } from 'node:path';
-import { killChild, rmSafe } from './cleanup.mjs';
+import { killChild, rmSafe, claimPort } from './cleanup.mjs';
 import { keygen, mintToken } from '../src/auth.mjs';
 import { buildShims, decide } from '../src/shims.mjs';
 import { threeWayMerge } from '../src/merge.mjs';
@@ -29,7 +29,8 @@ const cmd = (actor, kind, payload, token = null) => fetch(`${HUB}/cmd`, {
   body: JSON.stringify({ actor, kind, payload }),
 }).then((r) => r.json().then((b) => ({ status: r.status, body: b })));
 
-before(async () => { rmSync(DIR, { recursive: true, force: true }); hub = startHub(); await waitUp(); });
+before(async () => { await claimPort('7784');
+  rmSync(DIR, { recursive: true, force: true }); hub = startHub(); await waitUp(); });
 after(async () => { killChild(hub); await rmSafe(DIR); });
 
 describe('durability', () => {

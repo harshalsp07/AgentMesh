@@ -5,7 +5,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { rmSync } from 'node:fs';
-import { killChild, rmSafe } from './cleanup.mjs';
+import { killChild, rmSafe, claimPort } from './cleanup.mjs';
 
 const PORT = '7791';
 const HUB = `http://127.0.0.1:${PORT}`;
@@ -16,6 +16,7 @@ const post = (path, body, headers = {}) => fetch(`${HUB}${path}`, { method: 'POS
 const get = (path) => fetch(`${HUB}${path}`).then((r) => r.json());
 
 before(async () => {
+  await claimPort('7791');
   rmSync(DIR, { recursive: true, force: true });
   hub = spawn('node', ['src/hub.mjs'], { env: { ...process.env, MESH_PORT: PORT, MESH_DIR: DIR, MESH_REPOS: 'web:../site,api:../src' }, stdio: ['ignore', 'ignore', 'inherit'] });
   const t0 = Date.now();

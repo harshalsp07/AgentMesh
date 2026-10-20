@@ -9,9 +9,15 @@ jobs:
         with: { node-version: 22 }
       - run: node --version && git --version
       - run: npm test
+      - name: Production hardening gates (auth boundaries, atomic writes, JSON-RPC)
+        run: node --test test/hardening.test.mjs
       - run: npm run demo:all
       - name: Conductor demo (dry, asserted)
         run: node demo-bot.mjs
+      - name: Non-loopback bind without auth must refuse to start
+        run: |
+          MESH_HOST=0.0.0.0 MESH_PORT=7799 MESH_DIR=.mesh-ci-insecure node src/hub.mjs; \
+            test $? -eq 78 || (echo "hub did not fail closed" && exit 1)
       - name: Browser vendor bundle is fresh (crdt+macp kernels)
         run: |
           node scripts/bundle-sim.mjs
@@ -30,6 +36,9 @@ jobs:
       - run: node --version && git --version
       # npm test uses --test-force-exit (Windows test-runner hang guard)
       - run: npm test
+        shell: cmd
+      - name: Production hardening gates on Windows (atomic writes are Windows-sensitive)
+        run: node --test test/hardening.test.mjs
         shell: cmd
       - name: Conductor demo on Windows
         run: node demo-bot.mjs
