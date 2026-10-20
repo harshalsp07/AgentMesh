@@ -1,13 +1,15 @@
 # AgentMesh — Production Multi-Harness AI Agent Coordination Mesh
 
-[![Tests](https://img.shields.io/badge/tests-92%20passed-success?style=flat-square&logo=node.js)](https://github.com/harshalsp07/AgentMesh/actions)
+[![Tests](https://img.shields.io/badge/tests-109%20passed-success?style=flat-square&logo=node.js)](https://github.com/harshalsp07/AgentMesh/actions)
 [![Docker Image](https://img.shields.io/badge/docker-harshalsp07%2Fagentmesh-blue?style=flat-square&logo=docker)](https://hub.docker.com/r/harshalsp07/agentmesh)
 [![Live Demo](https://img.shields.io/badge/live_observatory-github_pages-brightgreen?style=flat-square&logo=github)](https://harshalsp07.github.io/AgentMesh/)
 [![MCP Ready](https://img.shields.io/badge/MCP-JSON--RPC%202.0-8a2be2?style=flat-square)](https://modelcontextprotocol.io/)
 [![Google A2A](https://img.shields.io/badge/Google%20A2A-1.0.0-blue?style=flat-square)](https://a2a-protocol.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 
-> 🗺️ **Where we're going:** [docs/MASTER_PLAN.md](docs/MASTER_PLAN.md) — the plan to make AgentMesh the default answer for AI-agent collaboration (landing site, the Conductor agent, task board, TTFC onboarding, comparison market map).
+> 🗺️ **Where we're going:** [docs/PRODUCTION_PLAN.md](docs/PRODUCTION_PLAN.md) — the plan to make AgentMesh the default answer for AI-agent collaboration (protocol versioning, durable state, fenced leases, real contract graphs, multi-tenancy, outcome-based evals).
+> 📚 **Research:** [docs/research/agent-protocols-landscape-2026.md](docs/research/agent-protocols-landscape-2026.md) — a primary-source survey of MCP, A2A, ACP, AG-UI, Claude Code agent teams, worktree orchestrators, evals and multi-agent failure taxonomies.
+> 🔒 **Security:** [docs/SECURITY.md](docs/SECURITY.md) — the threat model, and exactly which controls are shipped vs planned.
 
 **AgentMesh** enables multiple independent AI coding harnesses—such as **Google Antigravity** on Laptop 1 and **OpenAI Codex / Cursor / Claude Code** on Laptop 2—to safely collaborate on the **exact same repository in real time** without overwriting each other's work or breaking API contracts.
 
@@ -98,12 +100,20 @@ On Laptop 1, clone the repository and start the Hub daemon on all network interf
 ```bash
 git clone https://github.com/harshalsp07/AgentMesh.git
 cd AgentMesh
-npm test               # Verify 92 tests pass
+npm test               # Verify 109 tests pass
+
+# Create the keypair -> capability auth is enforced from here on.
+node bin/mesh up
+node bin/mesh token antigravity-ui   # per-actor capability (8 h TTL)
 
 # Start Hub listening for LAN connections
 MESH_HOST=0.0.0.0 node src/hub.mjs
 ```
 *Note your Laptop 1 LAN IP address (e.g. `192.168.1.50`).*
+
+> 🔒 **A non-loopback bind without auth refuses to start** (exit 78) — a LAN-reachable hub must
+> never be world-writable. `mesh up` creates the keys; `MESH_INSECURE=1` is the explicit opt-out for
+> a trusted network. See [docs/SECURITY.md](docs/SECURITY.md).
 
 ### Step 2: Configure Google Antigravity on Laptop 1
 Google Antigravity automatically detects [`.agents/mcp_config.json`](.agents/mcp_config.json) located in this workspace:
@@ -129,9 +139,9 @@ On Laptop 2, clone the repository and execute the zero-config join script:
 git clone https://github.com/harshalsp07/AgentMesh.git
 cd AgentMesh
 
-# Automatically test connection and configure .cursor/mcp.json
-./bin/mesh-join http://<LAPTOP_1_IP>:7777
-# Example: ./bin/mesh-join http://192.168.1.50:7777
+# Mint a token for this machine on Laptop 1 first, then:
+./bin/mesh-join http://<LAPTOP_1_IP>:7777 codex-backend --token <capability-token>
+# Example: ./bin/mesh-join http://192.168.1.50:7777 codex-backend --token eyJ...
 ```
 
 **That's it!** Both agents are now linked into the mesh. Open **`http://<LAPTOP_1_IP>:7777`** in any browser to observe the live topology canvas.
@@ -280,6 +290,59 @@ AgentMesh can be operated in production across any hosting environment:
 
 ---
 
+## 🗂 The Strip Board — operator console
+
+`node src/hub.mjs` serves a live operator console at `http://localhost:7777/`.
+It is **zero-dependency and zero-build**: three plain files (`index.html`,
+`app.js`, `style.css`) with no framework, no bundler and no webfonts.
+
+| Desk | What it gives you |
+|---|---|
+| **TOPO** | live AST-scope graph, paper strips for every lease, collision conduits, per-agent presence lamps |
+| **SWARM** | roster, swarm-ops readout, **task board** (blocked → pending → in-progress → done), and a **Connect** panel that emits a ready-to-paste MCP config for Cursor / Claude Code / VS Code / Codex |
+| **CRDT** | semantic registers with authors and Lamport clocks, causal vector clock |
+| **MACP** | the 5-mode coordination kernel with weighted votes and quorum bars |
+| **DAG** | Merkle provenance timeline plus a live hash-chain verification |
+| **BOARD** | hub-synced whiteboard (pointer events, touch + pen), tldraw deep link |
+| **VOICE** | real microphone capture with a Web Audio VU meter |
+| **HEALTH** | live `/metrics`, `/health`, `/ready`, `/verify` and the SSE event log |
+
+Plus three things that make it feel like a tool rather than a report:
+
+* **Command palette** — `Ctrl/Cmd+K` (or `?`) fuzzy-launches every action, agent,
+  intent and task. `1`–`8` jump between desks, `f` focuses, `r` refreshes —
+  the same keyboard map the canvas at `src/canvas.html` uses.
+* **Time Machine** — scrub the last 500 events and watch the mesh rewind to the
+  state it had at that `seq`. The reducer that powers it is the same one that
+  processes the live stream.
+* **Approvals drawer** — requests addressed to you, with one-click accept/decline.
+  The mesh's core loop was previously invisible in the UI.
+
+### Performance
+
+| | Before | After |
+|---|---|---|
+| HTTP requests per mesh event | 4 | **1 per burst** (0 amortised) |
+| Requests for a 40-event burst | 160 | **1** |
+| Render cost, 50 intents | ~40 ms | **~2 ms** |
+| Long tasks during a burst | frequent | **0** |
+| Topology SVG nodes at 66 conflicts | 1956 | **54** (capped, and it says so) |
+
+The trick is one `EventSource`, one coalesced `/api/overview` fetch, lazy
+per-desk panels, keyed DOM reconciliation, and a pure reducer that can replay
+history. Full budgets and a measurement recipe: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+
+### Docs
+
+| Document | What it covers |
+|---|---|
+| [`docs/SITE.md`](docs/SITE.md) | site architecture, data flow, feature + keyboard map, extension points |
+| [`docs/SITE_PLAN.md`](docs/SITE_PLAN.md) | the research + audit that produced this build |
+| [`docs/INTEGRATION.md`](docs/INTEGRATION.md) | MCP config per client, one-command join, capability tokens, A2A, open backend requests |
+| [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) | budgets, measurement procedure, regression checklist |
+
+---
+
 ## 📜 Testing & Quality Assurance
 
 AgentMesh maintains an extensive automated test suite covering all subsystems:
@@ -308,7 +371,18 @@ npm test
 ✓ Conductor bot = scout/dispatch/referee/keeper under coin budget, dry by default
 ✓ Task board = atomic claims, WIP limits, dependency chains over HTTP + MCP
 ✓ Trust layer = token revocation (jti), key rotation, Merkle audit export
-   tests 92 | suites 37 | pass 92 | fail 0
+✓ Hardening = atomic writes are concurrent-safe, 5 open write routes now 401,
+  intent ids are server-assigned, hard leases need a scope, SSE needs a token,
+  bridge is JSON-RPC compliant, a LAN bind without auth refuses to start
+✓ Strip Board contract = every id app.js binds to exists in index.html, no
+  HTML-parsing sink in the client, reducer is pure and replays history, one
+  EventSource, requests coalesce to one per burst, payload stays in budget
+   tests 142 | suites 48 | pass 142 | fail 0
+```
+
+> **A green suite is not the same as a merged PR.** METR measured a ~24-point gap between
+> automated graders and maintainer merge decisions on AI-generated changes. The AgentMesh
+> quality bar is the outcome-based suite in `docs/PRODUCTION_PLAN.md` (Phase 5).
 
 ---
 

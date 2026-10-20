@@ -13,7 +13,9 @@
 
   function $(id) { return document.getElementById(id); }
   function status(msg) {
-    const el = $('tldraw-status') || $('bstat');
+    // The board owns ONE status line. `#bstat` is canonical; `#tldraw-status`
+    // is kept as a fallback for older hosts.
+    const el = $('bstat') || $('tldraw-status');
     if (el) el.textContent = msg;
   }
   function hubBase() {
@@ -92,6 +94,12 @@
     return m[c] || 'yellow';
   }
 
+  // tldraw colour -> hub colour name (the hub only stores yellow|blue|green|pink|gray|red)
+  function hubColor(c) {
+    const m = { yellow: 'yellow', orange: 'red', red: 'red', green: 'green', blue: 'blue', grey: 'gray', gray: 'gray', violet: 'pink', pink: 'pink' };
+    return m[c] || 'yellow';
+  }
+
   // tldraw editor snapshot → hub import doc (share.mjs importTldraw shape)
   function editorToHubDoc(editor) {
     const shapes = [];
@@ -104,7 +112,7 @@
           type: isDraw ? 'draw' : r.type === 'note' ? 'note' : 'rect',
           x: Math.round(r.x || 0), y: Math.round(r.y || 0),
           w: Math.round(p.w || 180), h: Math.round(p.h || 120),
-          color: 'yellow', text: String(p.text || '').slice(0, 500),
+          color: hubColor(p.color), text: String(p.text || '').slice(0, 500),
           ...(isDraw && p.segments?.[0]?.points ? { points: p.segments[0].points.slice(0, 200).map((pt) => [Math.round(pt.x || 0), Math.round(pt.y || 0)]) } : {}),
         });
       }
@@ -150,9 +158,15 @@
       root.id = 'tldraw-root';
       root.setAttribute('role', 'application');
       root.setAttribute('aria-label', 'AgentMesh whiteboard (tldraw)');
-      root.style.cssText = 'width:100%;height:60vh;border:1px solid var(--line);border-radius:8px;overflow:hidden';
-      stage.appendChild(root);
     }
+    // #board-stage holds a SINGLE child: either #board-svg (legacy) or
+    // #tldraw-root (flag) — never both. The legacy canvas is detached (not
+    // just hidden) so it cannot be tabbed into, and is restored verbatim if
+    // the CDN fails.
+    const legacyParent = legacy && legacy.parentNode ? legacy.parentNode : null;
+    const legacyNext = legacy && legacy.nextSibling ? legacy.nextSibling : null;
+    if (legacy && legacy.parentNode) legacy.parentNode.removeChild(legacy);
+    if (root.parentNode !== stage) stage.appendChild(root);
     // CSS for tldraw (injected once, non-blocking on failure)
     if (!document.querySelector('link[data-mesh-tldraw-css]')) {
       const l = document.createElement('link');
@@ -169,7 +183,6 @@
       const React = await import('react');
       const e = React.createElement;
 
-      if (legacy) legacy.style.display = 'none';
       root.style.display = 'block';
 
       const auth = await probeLiveblocks();
@@ -190,6 +203,7 @@
 
       createRoot(root).render(e(Tldraw, { autoFocus: true, onMount }));
       st.mounted = true;
+      document.documentElement.dataset.tldraw = '1';   // the board status line belongs to tldraw now
 
       // Wire Sync / Load buttons if present
       const syncBtn = $('btn-board-tldraw-sync');
@@ -204,15 +218,32 @@
       if (!auth.ok) status(`tldraw · hub mode · ${initial.length} from hub · ${auth.hint || 'no key, LAN-fast'}`);
       return true;
     } catch (err) {
-      if (legacy) legacy.style.display = '';
-      root.style.display = 'none';
+      // The board must never blank-screen: put the legacy canvas back.
+      if (root.parentNode) root.parentNode.removeChild(root);
+      if (legacy && legacyParent) {
+        if (legacyNext && legacyNext.parentNode === legacyParent) legacyParent.insertBefore(legacy, legacyNext);
+        else legacyParent.appendChild(legacy);
+      }
+      delete document.documentElement.dataset.tldraw;
       status('tldraw CDN failed · legacy board · check network');
       return false;
     }
   }
 
+  /**
+   * The tldraw board is opt-in. The flag is read from the query string first
+   * (static hosts) and from the hash second (the hub strips query strings
+   * before routing, so `?board=tldraw` 404s there — use `#board&board=tldraw`).
+   */
   function shouldUseTldraw() {
-    try { return new URLSearchParams(location.search).get('board') === 'tldraw'; } catch { return false; }
+    try {
+      if (new URLSearchParams(location.search).get('board') === 'tldraw') return true;
+    } catch { /* no search */ }
+    try {
+      const raw = (location.hash || '').replace(/^#/, '');
+      return raw.split('&').some((p) => p === 'board=tldraw');
+    } catch { /* no hash */ }
+    return false;
   }
 
   window.AgentMeshBoardTldraw = { mount, shouldUseTldraw, pushToHub: () => st.editor && pushToHub(st.editor, { allowEmpty: true }) };
