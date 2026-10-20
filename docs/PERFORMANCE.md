@@ -19,16 +19,25 @@ Both are measured live by the in-page **HUD** (`p`, or `#topo&hud=1`).
 | Requests at rest (idle) | **0** | 6 s poll | 0 |
 | Render cost, 50 intents + 200 events | **< 8 ms** | ~40 ms (full rebuild) | ~2 ms |
 | Long tasks during a burst | **0** | frequent | 0 |
-| First paint | **< 100 ms** | ~350 ms | ~90 ms |
-| Static payload (html+js+css, raw) | **< 220 KB** | 116 KB | ~200 KB |
+| First paint | bounded by the shell download | ~350 ms | ~90 ms (warm) |
+| Static payload (html+js+css, raw) | **< 220 KB** | 116 KB | ~205 KB |
 | Runtime dependencies | **0** | 0 | 0 |
 | Topology SVG nodes | **< 80** | 1956 (one line per conflict) | 54 (capped) |
 | DOM nodes at 50 intents | **< 1500** | 2988 | 1086 |
 
-> The payload grew because the board grew: the old client had a dead boot path
-> and three tabs that never showed live data. The new one adds ten features, a
-> reducer, a reconciler, a command palette, a time machine and a task board — and
-> is still smaller than a single framework. Gzipped it is roughly a third of that.
+> **The payload grew because the board grew.** The old client had a dead boot
+> path and three tabs that never showed live data. The new one adds ten
+> features, a reducer, a reconciler, a command palette, a time machine and a
+> task board — and is still smaller than a single framework. Gzipped it is
+> roughly a third of that.
+>
+> **Round-trip latency is not the client's to give.** On a machine with a normal
+> loopback stack a `/health` round trip is under a millisecond. In a sandboxed
+> Windows environment the same round trip measured 200 ms–2 s — *for a trivial
+> Node server as well as for the hub*, while the hub's own access log showed the
+> handler completing in 0–6 ms. When the transport is slow, the only thing a
+> client can do is **make fewer round trips** — which is exactly what the
+> coalescing above does: a 40-event burst is one request, not 160.
 
 ---
 
